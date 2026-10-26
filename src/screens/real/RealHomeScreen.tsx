@@ -6,34 +6,16 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { elevation, radius, spacing } from '../../theme/tokens';
 import { accountName, useAuth } from '../../lib/AuthProvider';
-import {
-  ageFrom,
-  describeProfileError,
-  fullName,
-  initialsOf,
-  MAX_STUDENT_PROFILES,
-  relationLabel,
-  StudentProfile,
-  useStudentProfiles,
-} from '../../lib/api/studentProfiles';
+import { ageFrom, fullName, initialsOf, relationLabel } from '../../lib/api/studentProfiles';
+import { Membership, STATUS_LABEL, useMyMemberships } from '../../lib/api/batches';
+import { useActiveStudent } from '../../lib/store/useActiveStudent';
+import { rupees } from '../../lib/utils/format';
+import { gradientFor } from '../../lib/utils/profileColors';
 import { AppText, Avatar, Card, EmptyState, HeroCard, IconName, Pill, Row, SectionHeader } from '../../components/ui/base';
 import { Button } from '../../components/ui/Button';
 import { Screen } from '../../components/ui/Screen';
-import { RealMenuButton } from '../../components/real/RealSideMenu';
-import { Membership, STATUS_LABEL, useMyMemberships } from '../../lib/api/batches';
-import { rupees } from '../../lib/utils/format';
+import { RealMenuButton, useRealSideMenu } from '../../components/real/RealSideMenu';
 
-/** Stable gradient per profile so a child keeps the same colour everywhere. */
-export const PROFILE_GRADIENTS: [string, string][] = [
-  ['#8E1437', '#C2185B'],
-  ['#1E5AA8', '#4F8FE0'],
-  ['#0F7A52', '#3DB385'],
-  ['#B8860B', '#E0B23C'],
-];
-
-export function gradientFor(index: number): [string, string] {
-  return PROFILE_GRADIENTS[index % PROFILE_GRADIENTS.length];
-}
 
 /** Features that are still demo-only, shown so the build progress is visible. */
 const COMING_NEXT: { icon: IconName; title: string }[] = [
@@ -44,25 +26,27 @@ const COMING_NEXT: { icon: IconName; title: string }[] = [
 ];
 
 /**
- * Home of the real, database-connected app. Everything here is read from and
- * written to Supabase; the demo screens stay one tap away (top right).
+ * Home of the real app, always about ONE student — the active profile chosen
+ * in the side menu. Everything here is that student's.
  */
 export function RealHomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { session, profile, enterDemo } = useAuth();
-  const profiles = useStudentProfiles();
+  const { open: openMenu } = useRealSideMenu();
+  const { active, activeIndex, profiles, isLoading } = useActiveStudent();
   const memberships = useMyMemberships();
 
-  const list = profiles.data ?? [];
-  const name = accountName(profile, session);
-  const firstName = profile?.first_name || name.split(' ')[0];
-  const canAdd = list.length < MAX_STUDENT_PROFILES;
+  const accountFirst = profile?.first_name || accountName(profile, session).split(' ')[0];
+  const mine = (memberships.data ?? []).filter((m) => m.student_id === active?.id);
+  const joined = mine.filter((m) => m.status === 'approved').length;
+  const waiting = mine.filter((m) => m.status === 'pending').length;
+  const age = active ? ageFrom(active.dob) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
-      {/* ── App bar ─────────────────────────────────────────────────────── */}
+      {/* ── App bar: who is being shown ─────────────────────────────────── */}
       <Row
         justify="space-between"
         gap={spacing.md}
@@ -70,24 +54,28 @@ export function RealHomeScreen() {
       >
         <RealMenuButton />
         <Pressable
-          onPress={() => navigation.navigate('Account')}
+          onPress={openMenu}
           accessibilityRole="button"
-          accessibilityLabel="Your account"
+          accessibilityLabel={active ? `Viewing ${fullName(active)}. Switch student` : 'Add a student'}
           style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1, opacity: pressed ? 0.7 : 1 })}
         >
-          <Avatar
-            initials={`${profile?.first_name?.[0] ?? name[0] ?? 'V'}${profile?.last_name?.[0] ?? ''}`.toUpperCase()}
-            gradient={['#5a0812', '#8E1437']}
-            size={40}
-            ring
-          />
+          {active ? (
+            <Avatar initials={initialsOf(active)} gradient={gradientFor(activeIndex)} size={40} ring />
+          ) : (
+            <View style={[styles.emptyAvatar, { borderColor: colors.borderStrong }]}>
+              <Ionicons name="person-add-outline" size={17} color={colors.textMuted} />
+            </View>
+          )}
           <View style={{ flex: 1 }}>
             <AppText variant="overline" tone="muted">
-              MY ACCOUNT
+              {active ? 'VIEWING' : 'NO STUDENT YET'}
             </AppText>
-            <AppText variant="subheading" numberOfLines={1}>
-              {name}
-            </AppText>
+            <Row gap={3}>
+              <AppText variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {active ? fullName(active) : 'Add a student'}
+              </AppText>
+              {profiles.length > 1 ? <Ionicons name="chevron-down" size={14} color={colors.textMuted} /> : null}
+            </Row>
           </View>
         </Pressable>
         <Pressable
@@ -97,12 +85,7 @@ export function RealHomeScreen() {
           hitSlop={6}
           style={({ pressed }) => [
             styles.demoBtn,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              opacity: pressed ? 0.7 : 1,
-              ...elevation(1, colors.shadowColor, colors.shadowOpacity),
-            },
+            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1, ...elevation(1, colors.shadowColor, colors.shadowOpacity) },
           ]}
         >
           <Ionicons name="play-circle-outline" size={17} color={colors.primary} />
@@ -112,132 +95,120 @@ export function RealHomeScreen() {
         </Pressable>
       </Row>
 
-      <Screen
-        refreshing={profiles.isRefetching || memberships.isRefetching}
-        onRefresh={() => {
-          profiles.refetch();
-          memberships.refetch();
-        }}
-      >
-        <HeroCard>
-          <AppText variant="overline" style={{ color: colors.goldBright }}>
-            WELCOME
-          </AppText>
-          <AppText variant="display" style={{ color: '#FDFBF9', marginTop: 2 }}>
-            Hi, {firstName}
-          </AppText>
-          <AppText variant="caption" style={{ color: 'rgba(253,251,249,0.7)', marginTop: 2 }}>
-            Your Vilarci Study account is live and connected.
-          </AppText>
-          <Row style={{ marginTop: spacing.lg }} gap={spacing.lg}>
-            <HeroStat value={`${list.length}/${MAX_STUDENT_PROFILES}`} label="STUDENT PROFILES" />
-            <HeroStat value={profile?.whatsapp_number ? 'Verified' : '—'} label="WHATSAPP" />
-          </Row>
-        </HeroCard>
-
-        {/* ── Student profiles ──────────────────────────────────────────── */}
-        <View style={{ marginTop: spacing.xxl }}>
-          <SectionHeader
-            title="Student profiles"
-            subtitle="Up to 3 per account — yourself and anyone you study for"
-            action={canAdd && list.length > 0 ? 'Add' : undefined}
-            onAction={() => navigation.navigate('StudentForm')}
-          />
-
-          {profiles.isLoading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.xl }} />
-          ) : profiles.isError ? (
-            <Card>
-              <AppText variant="caption" tone="error">
-                {describeProfileError(profiles.error)}
+      <Screen refreshing={memberships.isRefetching} onRefresh={() => memberships.refetch()}>
+        {isLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
+        ) : !active ? (
+          /* ── No student profile yet ─────────────────────────────────── */
+          <>
+            <HeroCard>
+              <AppText variant="overline" style={{ color: colors.goldBright }}>
+                WELCOME
               </AppText>
-              <Button label="Try again" variant="secondary" size="sm" onPress={() => profiles.refetch()} style={{ marginTop: spacing.md }} />
-            </Card>
-          ) : list.length === 0 ? (
-            <View>
+              <AppText variant="display" style={{ color: '#FDFBF9', marginTop: 2 }}>
+                Hi, {accountFirst}
+              </AppText>
+              <AppText variant="caption" style={{ color: 'rgba(253,251,249,0.7)', marginTop: 2 }}>
+                Add a student to get started — yourself or someone you study for.
+              </AppText>
+            </HeroCard>
+            <View style={{ marginTop: spacing.xl }}>
               <EmptyState
                 icon="people-outline"
                 title="No student profiles yet"
-                message="Add yourself if you're studying, plus up to 2 more — a child, a friend, anyone. Each profile gets its own classes, attendance and marks."
+                message="Each student gets their own batches, classes, attendance and marks. You can add up to 3."
               />
               <Button
-                label="Add a student profile"
+                label="Add a student"
                 iconName="person-add-outline"
                 fullWidth
                 onPress={() => navigation.navigate('StudentForm')}
                 style={{ marginTop: spacing.md }}
               />
             </View>
-          ) : (
-            <View style={{ gap: spacing.md }}>
-              {list.map((p, i) => (
-                <ProfileCard key={p.id} profile={p} index={i} onPress={() => navigation.navigate('StudentForm', { id: p.id })} />
-              ))}
-              {canAdd ? (
-                <Pressable
-                  onPress={() => navigation.navigate('StudentForm')}
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.addTile,
-                    { borderColor: colors.borderStrong, opacity: pressed ? 0.7 : 1 },
-                  ]}
-                >
-                  <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-                  <AppText variant="subheading" tone="primary">
-                    Add student profile ({list.length}/{MAX_STUDENT_PROFILES})
+          </>
+        ) : (
+          <>
+            {/* ── Active student ─────────────────────────────────────────── */}
+            <HeroCard>
+              <Row gap={spacing.md} align="flex-start">
+                <Avatar initials={initialsOf(active)} gradient={gradientFor(activeIndex)} size={56} ring />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="overline" style={{ color: colors.goldBright }}>
+                    {active.created_by === 'self' ? 'MY STUDENT PROFILE' : `ADDED AS ${relationLabel(active).toUpperCase()}`}
                   </AppText>
+                  <AppText variant="title" numberOfLines={2} style={{ color: '#FDFBF9', marginTop: 2 }}>
+                    {fullName(active)}
+                  </AppText>
+                  <AppText variant="caption" style={{ color: 'rgba(253,251,249,0.72)', marginTop: 2 }}>
+                    {[active.class_name, active.board, age !== null ? `${age} yrs` : null].filter(Boolean).join(' · ') ||
+                      'Add class and board in the profile'}
+                  </AppText>
+                </View>
+                <Pressable
+                  onPress={() => navigation.navigate('StudentForm', { id: active.id })}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit student profile"
+                  style={styles.heroEdit}
+                >
+                  <Ionicons name="create-outline" size={16} color="#FDFBF9" />
                 </Pressable>
+              </Row>
+              <Row style={{ marginTop: spacing.lg }} gap={spacing.xl}>
+                <HeroStat value={String(joined)} label="BATCHES" />
+                <HeroStat value={String(waiting)} label="WAITING" />
+              </Row>
+            </HeroCard>
+
+            {/* ── This student's private batches ───────────────────────── */}
+            <View style={{ marginTop: spacing.xxl }}>
+              <SectionHeader
+                title={`${active.first_name}'s batches`}
+                subtitle="Private batches and their status"
+                action={mine.length ? 'Join' : undefined}
+                onAction={() => navigation.navigate('JoinBatch', { studentId: active.id })}
+              />
+              {memberships.isLoading ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : mine.length ? (
+                <View style={{ gap: spacing.md }}>
+                  {mine.map((m) => (
+                    <MembershipCard key={m.id} m={m} />
+                  ))}
+                </View>
               ) : (
-                <AppText variant="caption" tone="muted" center>
-                  All {MAX_STUDENT_PROFILES} student profiles are in use.
-                </AppText>
+                <Card>
+                  <Row gap={spacing.md} align="flex-start">
+                    <Ionicons name="key-outline" size={20} color={colors.primary} style={{ marginTop: 2 }} />
+                    <AppText variant="caption" tone="secondary" style={{ flex: 1 }}>
+                      {active.first_name} hasn't joined a batch yet. Got a join link or code from a teacher — tuition,
+                      music, art, yoga or anything else? Open the link, or enter the code.
+                    </AppText>
+                  </Row>
+                  <Button
+                    label={`Join a batch for ${active.first_name}`}
+                    iconName="enter-outline"
+                    fullWidth
+                    onPress={() => navigation.navigate('JoinBatch', { studentId: active.id })}
+                    style={{ marginTop: spacing.md }}
+                  />
+                </Card>
               )}
             </View>
-          )}
-        </View>
-
-        {/* ── Private batches joined ────────────────────────────────────── */}
-        <View style={{ marginTop: spacing.xxl }}>
-          <SectionHeader
-            title="My batches"
-            subtitle="Private batches your students joined"
-            action={memberships.data?.length ? 'Join' : undefined}
-            onAction={() => navigation.navigate('JoinBatch')}
-          />
-          {memberships.isLoading ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : memberships.data?.length ? (
-            <View style={{ gap: spacing.md }}>
-              {memberships.data.map((m) => (
-                <MembershipCard key={m.id} m={m} />
-              ))}
-            </View>
-          ) : (
-            <Card>
-              <Row gap={spacing.md} align="flex-start">
-                <Ionicons name="key-outline" size={20} color={colors.primary} style={{ marginTop: 2 }} />
-                <AppText variant="caption" tone="secondary" style={{ flex: 1 }}>
-                  Got a join link or code from a teacher — tuition, music, art, yoga or anything else? Open the link, or
-                  enter the code here.
-                </AppText>
-              </Row>
-              <Button
-                label="Join a batch"
-                iconName="enter-outline"
-                fullWidth
-                onPress={() => navigation.navigate('JoinBatch')}
-                style={{ marginTop: spacing.md }}
-              />
-            </Card>
-          )}
-        </View>
+          </>
+        )}
 
         {/* ── Build progress ────────────────────────────────────────────── */}
         <View style={{ marginTop: spacing.xxl }}>
           <SectionHeader title="Coming next" subtitle="Already designed — try them in the demo" />
           <Card>
             {COMING_NEXT.map((f, i) => (
-              <Row key={f.title} gap={spacing.md} style={{ paddingVertical: spacing.sm, borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: colors.border }}>
+              <Row
+                key={f.title}
+                gap={spacing.md}
+                style={{ paddingVertical: spacing.sm, borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: colors.border }}
+              >
                 <Ionicons name={f.icon} size={18} color={colors.textMuted} />
                 <AppText variant="bodyStrong" tone="secondary" style={{ flex: 1 }}>
                   {f.title}
@@ -245,15 +216,7 @@ export function RealHomeScreen() {
                 <Pill label="Demo" tone="neutral" />
               </Row>
             ))}
-            <Button
-              label="Open the demo"
-              variant="secondary"
-              size="sm"
-              iconName="play-circle-outline"
-              fullWidth
-              onPress={enterDemo}
-              style={{ marginTop: spacing.md }}
-            />
+            <Button label="Open the demo" variant="secondary" size="sm" iconName="play-circle-outline" fullWidth onPress={enterDemo} style={{ marginTop: spacing.md }} />
           </Card>
         </View>
       </Screen>
@@ -272,15 +235,15 @@ function MembershipCard({ m }: { m: Membership }) {
             {m.batch_name}
           </AppText>
           <AppText variant="caption" tone="muted" numberOfLines={1}>
-            {[m.subject, m.grade, m.board].filter(Boolean).join(' · ')} · {m.teacher_name}
+            {[m.subject, m.grade, m.board].filter(Boolean).join(' · ')}
           </AppText>
         </View>
         <Pill label={STATUS_LABEL[m.status]} tone={tone} />
       </Row>
       <Row gap={6} style={{ marginTop: spacing.sm }}>
-        <Ionicons name="person-outline" size={13} color={colors.textMuted} />
+        <Ionicons name="person-circle-outline" size={14} color={colors.textMuted} />
         <AppText variant="caption" tone="secondary" style={{ flex: 1 }} numberOfLines={1}>
-          {m.student_name} · {rupees(m.monthly_fee)}/month
+          {m.teacher_name} · {rupees(m.monthly_fee)}/month
         </AppText>
       </Row>
     </Card>
@@ -301,36 +264,6 @@ function HeroStat({ value, label }: { value: string; label: string }) {
   );
 }
 
-function ProfileCard({ profile, index, onPress }: { profile: StudentProfile; index: number; onPress: () => void }) {
-  const { colors } = useTheme();
-  const age = ageFrom(profile.dob);
-  const meta = [profile.class_name, profile.board, age !== null ? `${age} yrs` : null].filter(Boolean).join(' · ');
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
-      <Card>
-        <Row gap={spacing.md}>
-          <Avatar initials={initialsOf(profile)} gradient={gradientFor(index)} size={48} />
-          <View style={{ flex: 1 }}>
-            <Row gap={6}>
-              <AppText variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {fullName(profile)}
-              </AppText>
-              <Pill
-                label={profile.created_by === 'self' ? 'Self' : `By ${relationLabel(profile)}`}
-                tone={profile.created_by === 'self' ? 'gold' : 'primary'}
-              />
-            </Row>
-            <AppText variant="caption" tone="muted" numberOfLines={1} style={{ marginTop: 2 }}>
-              {meta || 'Add class and board'}
-            </AppText>
-          </View>
-          <Ionicons name="chevron-forward" size={17} color={colors.textMuted} />
-        </Row>
-      </Card>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   demoBtn: {
     flexDirection: 'row',
@@ -341,14 +274,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  addTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.lg,
-    borderRadius: radius.lg,
+  emptyAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1.5,
     borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroEdit: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(253,251,249,0.16)',
   },
 });

@@ -20,7 +20,8 @@ import { AppText, Avatar, Card, Divider, EmptyState, HeroCard, KeyValue, Pill, R
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { AuthField, ErrorBanner } from '../../components/auth/AuthKit';
-import { gradientFor } from './RealHomeScreen';
+import { gradientFor } from '../../lib/utils/profileColors';
+import { useActiveStudent } from '../../lib/store/useActiveStudent';
 
 const DAYS: [keyof import('../../lib/api/batches').WeekSchedule, string][] = [
   ['mon', 'Mon'],
@@ -38,11 +39,14 @@ export function JoinBatchScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const toast = useToast();
-  const initialCode: string | undefined = useRoute<any>().params?.code;
+  const params = useRoute<any>().params ?? {};
+  const initialCode: string | undefined = params.code;
+  const { active } = useActiveStudent();
 
   const [typed, setTyped] = useState(initialCode ?? '');
   const [code, setCode] = useState<string | null>(initialCode && isJoinCode(initialCode) ? initialCode : null);
-  const [studentId, setStudentId] = useState<string | null>(null);
+  // Pre-select the student requested by the caller, else the active one.
+  const [studentId, setStudentId] = useState<string | null>(params.studentId ?? active?.id ?? null);
   const [failure, setFailure] = useState<string | null>(null);
   const [sentFor, setSentFor] = useState<string | null>(null);
 
@@ -62,7 +66,6 @@ export function JoinBatchScreen() {
       setFailure('Enter the code exactly as shared, e.g. VLR-CZ78HG.');
       return;
     }
-    setStudentId(null);
     setCode(c);
   };
 
@@ -259,7 +262,7 @@ export function JoinBatchScreen() {
                 iconName="paper-plane-outline"
                 size="lg"
                 fullWidth
-                disabled={!studentId || full}
+                disabled={!studentId || full || Boolean(statusFor(studentId))}
                 loading={request.isPending}
                 onPress={send}
                 style={{ marginTop: spacing.xl }}
