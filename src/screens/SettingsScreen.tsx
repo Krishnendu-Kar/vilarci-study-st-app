@@ -24,7 +24,7 @@ import { Sheet } from '../components/ui/Sheet';
 import { useToast } from '../components/ui/Toast';
 import { Field } from '../components/ContextHeader';
 import { ScreenTitle } from '../components/ScreenTitle';
-import { accountName, useAuth } from '../lib/AuthProvider';
+import { accountName, accountWhatsapp, useAuth } from '../lib/AuthProvider';
 import { signOut } from '../lib/auth';
 import { formatDate, rupees } from '../lib/utils/format';
 
@@ -207,11 +207,8 @@ export function SettingsScreen() {
             ) : (
               <>
                 <KeyValue label="Signed in as" value={accountName(profile, session)} />
-                <KeyValue
-                  label="Account type"
-                  value={profile?.role === 'student' ? 'Student (18+)' : profile?.role === 'teacher' ? 'Teacher' : 'Parent / guardian'}
-                />
-                <KeyValue label="WhatsApp" value={profile?.phone ?? session?.user.phone ?? '—'} />
+                <KeyValue label="WhatsApp" value={accountWhatsapp(profile, session) ?? '—'} />
+                <KeyValue label="Email" value={profile?.email ?? session?.user.email ?? '—'} />
                 <Divider style={{ marginVertical: spacing.sm }} />
                 {confirmLogout ? (
                   <View>

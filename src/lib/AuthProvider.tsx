@@ -2,16 +2,18 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
+/** Account owner details — one row in public.users per login. */
 export interface AccountProfile {
   id: string;
-  role: 'parent' | 'student' | 'teacher';
   first_name: string;
   middle_name: string;
   last_name: string;
   gender: 'male' | 'female' | 'other' | null;
-  dob: string | null;
-  phone: string | null;
+  whatsapp_number: string | null;
   email: string | null;
+  dob: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface AuthValue {
@@ -69,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(null);
       return;
     }
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+    const { data, error } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
     // A missing table or row is not fatal — the app falls back to the auth user.
     setProfile(error ? null : (data as AccountProfile | null));
   }, [userId]);
@@ -94,7 +96,14 @@ export function useAuth(): AuthValue {
 
 /** Display name for the signed-in account holder. */
 export function accountName(profile: AccountProfile | null, session: Session | null): string {
-  if (profile) return [profile.first_name, profile.last_name].filter(Boolean).join(' ');
+  const fromRow = profile ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') : '';
+  if (fromRow) return fromRow;
   const meta = session?.user.user_metadata ?? {};
   return [meta.first_name, meta.last_name].filter(Boolean).join(' ') || 'Vilarci member';
+}
+
+/** WhatsApp number on file, falling back to the login's phone. */
+export function accountWhatsapp(profile: AccountProfile | null, session: Session | null): string | null {
+  const phone = session?.user.phone;
+  return profile?.whatsapp_number || (phone ? `+${phone.replace(/^\+/, '')}` : null);
 }
