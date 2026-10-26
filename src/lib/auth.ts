@@ -75,6 +75,9 @@ export function describeAuthError(err: unknown, fallback: string): string {
   if (/token has expired|invalid.*otp|otp.*invalid|token.*invalid/i.test(msg)) return 'That code is wrong or has expired. Request a new one.';
   if (/18 years/i.test(msg)) return 'The account holder must be at least 18 years old.';
   if (/rate limit|too many|security purposes/i.test(msg)) return 'Too many attempts. Please wait a minute and try again.';
+  if (/phone logins are disabled|phone_provider_disabled/i.test(msg)) {
+    return 'Mobile-number login isn’t switched on yet. Please try again later.';
+  }
   if (/phone.*(provider|disabled)|unsupported phone provider|sms.*(disabled|provider)/i.test(msg)) {
     return 'WhatsApp verification isn’t switched on yet. Please try again later.';
   }
