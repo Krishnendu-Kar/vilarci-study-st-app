@@ -65,7 +65,7 @@ export function LoginScreen() {
           <AuthField
             label="Mobile number or email"
             icon="person-outline"
-            placeholder="9876543210 or you@example.com"
+            placeholder="Mobile number or email"
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"

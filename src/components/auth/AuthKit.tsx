@@ -1,5 +1,5 @@
 import React, { forwardRef, useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, TextInputProps, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, TextInputProps, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -9,6 +9,13 @@ import { passwordChecks } from '../../lib/auth';
 import { AppText, IconName, Row } from '../ui/base';
 
 const ON_DARK = '#FDFBF9';
+
+/** Phones narrower than this get tighter padding and a smaller hero. */
+const SMALL_WIDTH = 380;
+
+function useSmallScreen() {
+  return useWindowDimensions().width < SMALL_WIDTH;
+}
 const ON_DARK_SOFT = 'rgba(253,251,249,0.72)';
 
 // ─── Brand mark ───────────────────────────────────────────────────────────────
@@ -53,15 +60,16 @@ export function AuthHero({
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const small = useSmallScreen();
   return (
     <LinearGradient
       colors={colors.heroGradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={{
-        paddingTop: insets.top + spacing.md,
-        paddingHorizontal: spacing.xl,
-        paddingBottom: compact ? spacing.xxl + spacing.lg : 72,
+        paddingTop: insets.top + (small ? spacing.sm : spacing.md),
+        paddingHorizontal: small ? spacing.lg : spacing.xl,
+        paddingBottom: compact ? spacing.xxl + spacing.lg : small ? 60 : 72,
         borderBottomLeftRadius: radius.xl,
         borderBottomRightRadius: radius.xl,
         alignItems: 'center',
@@ -83,11 +91,11 @@ export function AuthHero({
         )}
         <View style={{ width: 38 }} />
       </Row>
-      {compact ? null : <BrandMark size={64} />}
+      {compact ? null : <BrandMark size={small ? 52 : 64} />}
       <AppText
-        variant="display"
+        variant={small ? 'title' : 'display'}
         center
-        style={{ color: ON_DARK, marginTop: compact ? 0 : spacing.lg }}
+        style={{ color: ON_DARK, marginTop: compact ? 0 : small ? spacing.md : spacing.lg }}
       >
         {title}
       </AppText>
@@ -103,12 +111,13 @@ export function AuthHero({
 /** White card that overlaps the hero's rounded base. */
 export function AuthCard({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
+  const small = useSmallScreen();
   return (
     <View
       style={{
-        marginHorizontal: spacing.lg,
-        marginTop: -48,
-        padding: spacing.xl,
+        marginHorizontal: small ? spacing.md : spacing.lg,
+        marginTop: small ? -40 : -48,
+        padding: small ? spacing.lg : spacing.xl,
         borderRadius: radius.xl,
         backgroundColor: colors.surface,
         borderWidth: StyleSheet.hairlineWidth,
@@ -160,6 +169,7 @@ export const AuthField = forwardRef<
           alignItems: 'center',
           gap: spacing.sm,
           paddingHorizontal: spacing.md,
+          overflow: 'hidden',
           borderRadius: radius.md,
           borderWidth: focused || error ? 1.5 : StyleSheet.hairlineWidth,
           borderColor,
@@ -187,6 +197,7 @@ export const AuthField = forwardRef<
           style={[
             {
               flex: 1,
+              minWidth: 0,
               paddingVertical: 14,
               color: colors.textMain,
               fontSize: 15,
@@ -202,6 +213,7 @@ export const AuthField = forwardRef<
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
+            style={{ flexShrink: 0 }}
           >
             <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={19} color={colors.textMuted} />
           </Pressable>
@@ -293,7 +305,8 @@ export function OtpInput({
             <View
               key={i}
               style={{
-                width: 46,
+                flex: 1,
+                maxWidth: 48,
                 height: 56,
                 borderRadius: radius.md,
                 alignItems: 'center',
