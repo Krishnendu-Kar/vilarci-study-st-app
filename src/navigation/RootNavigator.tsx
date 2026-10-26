@@ -37,6 +37,8 @@ import { StudentFormScreen } from '../screens/real/StudentFormScreen';
 import { AccountScreen } from '../screens/real/AccountScreen';
 import { ComingSoonScreen } from '../screens/real/ComingSoonScreen';
 import { JoinBatchScreen } from '../screens/real/JoinBatchScreen';
+import { StudentTimetableScreen } from '../screens/real/StudentTimetableScreen';
+import { StudentFeesScreen } from '../screens/real/StudentFeesScreen';
 import { joinCodeFromUrl } from '../lib/api/batches';
 import { RealSideMenuProvider } from '../components/real/RealSideMenu';
 import { realNavigationRef } from './realNavigationRef';
@@ -184,6 +186,8 @@ export function RootNavigator() {
             <RealStack.Screen name="Account" component={AccountScreen} />
             <RealStack.Screen name="ComingSoon" component={ComingSoonScreen} />
             <RealStack.Screen name="JoinBatch" component={JoinBatchScreen} />
+            <RealStack.Screen name="StudentTimetable" component={StudentTimetableScreen} />
+            <RealStack.Screen name="StudentFees" component={StudentFeesScreen} />
           </RealStack.Navigator>
         </NavigationContainer>
       </RealSideMenuProvider>

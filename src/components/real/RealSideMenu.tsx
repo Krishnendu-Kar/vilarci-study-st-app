@@ -28,7 +28,7 @@ interface MenuItem {
   label: string;
   icon: IconName;
   /** Real screen to open; absent = not built yet → "Coming soon". */
-  route?: 'RealHome' | 'Account' | 'JoinBatch';
+  route?: 'RealHome' | 'Account' | 'JoinBatch' | 'StudentTimetable' | 'StudentFees';
 }
 
 /**
@@ -47,7 +47,7 @@ const SECTIONS: { title: string; items: MenuItem[] }[] = [
   {
     title: 'ACADEMICS',
     items: [
-      { label: 'Timetable', icon: 'calendar-outline' },
+      { label: 'Timetable', icon: 'calendar-outline', route: 'StudentTimetable' },
       { label: 'Attendance', icon: 'checkmark-done-outline' },
       { label: 'Syllabus', icon: 'book-outline' },
       { label: 'Tests & Results', icon: 'document-text-outline' },
@@ -67,7 +67,7 @@ const SECTIONS: { title: string; items: MenuItem[] }[] = [
     title: 'CENTRES & ACCOUNT',
     items: [
       { label: 'Coaching centres', icon: 'business-outline' },
-      { label: 'Fees', icon: 'wallet-outline' },
+      { label: 'Fees', icon: 'wallet-outline', route: 'StudentFees' },
       { label: 'Verify Documents', icon: 'shield-checkmark-outline' },
       { label: 'My account', icon: 'person-circle-outline', route: 'Account' },
       { label: 'Help & Support', icon: 'help-buoy-outline' },

@@ -11,6 +11,7 @@ import { Membership, STATUS_LABEL, useMyMemberships } from '../../lib/api/batche
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
 import { rupees } from '../../lib/utils/format';
 import { gradientFor } from '../../lib/utils/profileColors';
+import { DAY_NAMES, daysFromToday, weekClasses } from '../../lib/utils/timetable';
 import { AppText, Avatar, Card, EmptyState, HeroCard, IconName, Pill, Row, SectionHeader } from '../../components/ui/base';
 import { Button } from '../../components/ui/Button';
 import { Screen } from '../../components/ui/Screen';
@@ -43,6 +44,11 @@ export function RealHomeScreen() {
   const joined = mine.filter((m) => m.status === 'approved').length;
   const waiting = mine.filter((m) => m.status === 'pending').length;
   const age = active ? ageFrom(active.dob) : null;
+
+  // Today's classes, or the next day that has any.
+  const week = weekClasses(mine);
+  const nextDay = daysFromToday().find(({ day }) => week[day].length);
+  const nextClasses = nextDay ? week[nextDay.day] : [];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
@@ -161,6 +167,45 @@ export function RealHomeScreen() {
               </Row>
             </HeroCard>
 
+            {/* ── Today / next classes ─────────────────────────────────── */}
+            {joined ? (
+              <View style={{ marginTop: spacing.xxl }}>
+                <SectionHeader
+                  title={!nextDay ? 'Classes' : nextDay.offset === 0 ? 'Today' : nextDay.offset === 1 ? 'Tomorrow' : DAY_NAMES[nextDay.day]}
+                  subtitle={nextDay ? `${nextClasses.length} class${nextClasses.length === 1 ? '' : 'es'}` : 'No class days set yet'}
+                  action="Timetable"
+                  onAction={() => navigation.navigate('StudentTimetable')}
+                />
+                <Card>
+                  {nextClasses.length ? (
+                    nextClasses.map((c, i) => (
+                      <Row
+                        key={`${c.membership.id}-${i}`}
+                        gap={spacing.md}
+                        style={{ paddingVertical: spacing.sm, borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: colors.border }}
+                      >
+                        <AppText variant="captionStrong" tone="primary" style={{ width: 72 }}>
+                          {c.start}
+                        </AppText>
+                        <View style={{ flex: 1 }}>
+                          <AppText variant="bodyStrong" numberOfLines={1}>
+                            {c.membership.batch_name}
+                          </AppText>
+                          <AppText variant="caption" tone="muted" numberOfLines={1}>
+                            {c.membership.teacher_name} · until {c.end}
+                          </AppText>
+                        </View>
+                      </Row>
+                    ))
+                  ) : (
+                    <AppText variant="caption" tone="muted">
+                      The teacher hasn't set class days yet.
+                    </AppText>
+                  )}
+                </Card>
+              </View>
+            ) : null}
+
             {/* ── This student's private batches ───────────────────────── */}
             <View style={{ marginTop: spacing.xxl }}>
               <SectionHeader
@@ -174,7 +219,11 @@ export function RealHomeScreen() {
               ) : mine.length ? (
                 <View style={{ gap: spacing.md }}>
                   {mine.map((m) => (
-                    <MembershipCard key={m.id} m={m} />
+                    <MembershipCard
+                      key={m.id}
+                      m={m}
+                      onPress={m.status === 'approved' ? () => navigation.navigate('StudentFees', { membershipId: m.id }) : undefined}
+                    />
                   ))}
                 </View>
               ) : (
@@ -224,10 +273,11 @@ export function RealHomeScreen() {
   );
 }
 
-function MembershipCard({ m }: { m: Membership }) {
+function MembershipCard({ m, onPress }: { m: Membership; onPress?: () => void }) {
   const { colors } = useTheme();
   const tone = m.status === 'approved' ? 'success' : m.status === 'pending' ? 'gold' : 'error';
   return (
+    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
     <Card>
       <Row justify="space-between" align="flex-start" gap={spacing.md}>
         <View style={{ flex: 1 }}>
@@ -245,8 +295,17 @@ function MembershipCard({ m }: { m: Membership }) {
         <AppText variant="caption" tone="secondary" style={{ flex: 1 }} numberOfLines={1}>
           {m.teacher_name} · {rupees(m.monthly_fee)}/month
         </AppText>
+        {onPress ? (
+          <Row gap={3}>
+            <Ionicons name="wallet-outline" size={13} color={colors.primary} />
+            <AppText variant="captionStrong" tone="primary">
+              Fees
+            </AppText>
+          </Row>
+        ) : null}
       </Row>
     </Card>
+    </Pressable>
   );
 }
 

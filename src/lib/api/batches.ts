@@ -39,6 +39,9 @@ export interface Membership {
   weekly_schedule: WeekSchedule;
   monthly_fee: number;
   teacher_name: string;
+  /** First day of the course's first / last month; null until the teacher sets it. */
+  course_start: string | null;
+  course_end: string | null;
 }
 
 const CODE_RE = /^VLR-[A-Z0-9]{6}$/;
