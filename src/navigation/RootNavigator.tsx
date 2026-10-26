@@ -34,6 +34,9 @@ import { useAuth } from '../lib/AuthProvider';
 import { RealHomeScreen } from '../screens/real/RealHomeScreen';
 import { StudentFormScreen } from '../screens/real/StudentFormScreen';
 import { AccountScreen } from '../screens/real/AccountScreen';
+import { ComingSoonScreen } from '../screens/real/ComingSoonScreen';
+import { RealSideMenuProvider } from '../components/real/RealSideMenu';
+import { realNavigationRef } from './realNavigationRef';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -153,13 +156,16 @@ export function RootNavigator() {
   // reached from its "Demo" button and keep tracking the original plan.
   if (session && !demo) {
     return (
-      <NavigationContainer theme={navTheme(isDark, colors)}>
-        <RealStack.Navigator screenOptions={pushOptions}>
-          <RealStack.Screen name="RealHome" component={RealHomeScreen} />
-          <RealStack.Screen name="StudentForm" component={StudentFormScreen} />
-          <RealStack.Screen name="Account" component={AccountScreen} />
-        </RealStack.Navigator>
-      </NavigationContainer>
+      <RealSideMenuProvider>
+        <NavigationContainer ref={realNavigationRef} theme={navTheme(isDark, colors)}>
+          <RealStack.Navigator screenOptions={pushOptions}>
+            <RealStack.Screen name="RealHome" component={RealHomeScreen} />
+            <RealStack.Screen name="StudentForm" component={StudentFormScreen} />
+            <RealStack.Screen name="Account" component={AccountScreen} />
+            <RealStack.Screen name="ComingSoon" component={ComingSoonScreen} />
+          </RealStack.Navigator>
+        </NavigationContainer>
+      </RealSideMenuProvider>
     );
   }
 

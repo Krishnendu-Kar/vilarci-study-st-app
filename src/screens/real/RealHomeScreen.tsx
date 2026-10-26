@@ -19,6 +19,7 @@ import {
 import { AppText, Avatar, Card, EmptyState, HeroCard, IconName, Pill, Row, SectionHeader } from '../../components/ui/base';
 import { Button } from '../../components/ui/Button';
 import { Screen } from '../../components/ui/Screen';
+import { RealMenuButton } from '../../components/real/RealSideMenu';
 
 /** Stable gradient per profile so a child keeps the same colour everywhere. */
 export const PROFILE_GRADIENTS: [string, string][] = [
@@ -61,8 +62,10 @@ export function RealHomeScreen() {
       {/* ── App bar ─────────────────────────────────────────────────────── */}
       <Row
         justify="space-between"
+        gap={spacing.md}
         style={{ paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}
       >
+        <RealMenuButton />
         <Pressable
           onPress={() => navigation.navigate('Account')}
           accessibilityRole="button"
