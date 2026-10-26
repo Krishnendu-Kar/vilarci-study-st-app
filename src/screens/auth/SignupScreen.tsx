@@ -38,7 +38,7 @@ import { formatDateLong } from '../../lib/utils/format';
 type StepId = 'name' | 'gender' | 'dob' | 'contact' | 'password';
 
 const STEPS: { id: StepId; icon: IconName; title: string; hint: string }[] = [
-  { id: 'name', icon: 'person-outline', title: 'What’s your name?', hint: 'You can add up to 3 student profiles after signing up.' },
+  { id: 'name', icon: 'person-outline', title: 'What’s your sweet name?', hint: '' },
   { id: 'gender', icon: 'body-outline', title: 'How do you identify?', hint: 'Used only for how teachers address you.' },
   { id: 'dob', icon: 'calendar-outline', title: 'When were you born?', hint: 'We confirm the account holder is an adult.' },
   { id: 'contact', icon: 'logo-whatsapp', title: 'Where can we reach you?', hint: 'We’ll send a 6-digit code to this WhatsApp number.' },
@@ -51,9 +51,21 @@ const GENDERS: { value: Gender; label: string; icon: IconName }[] = [
   { value: 'other', label: 'Other / prefer not to say', icon: 'person-outline' },
 ];
 
-type Errors = Partial<Record<'firstName' | 'lastName' | 'gender' | 'dob' | 'mobile' | 'email' | 'password' | 'confirm', string>>;
+type Errors = Partial<Record<'firstName' | 'middleName' | 'lastName' | 'gender' | 'dob' | 'mobile' | 'email' | 'password' | 'confirm', string>>;
 
 const RESEND_SECONDS = 30;
+
+/** First and last name: 3–35 characters each; middle name up to 35. */
+const NAME_MIN = 3;
+const NAME_MAX = 35;
+
+function nameProblem(value: string, label: string): string | undefined {
+  const v = value.trim();
+  if (!v) return `We need your ${label.toLowerCase()}.`;
+  if (v.length < NAME_MIN) return `${label} must be at least ${NAME_MIN} characters.`;
+  if (v.length > NAME_MAX) return `${label} can be at most ${NAME_MAX} characters.`;
+  return undefined;
+}
 
 export function SignupScreen() {
   const { colors, isDark } = useTheme();
@@ -118,8 +130,11 @@ export function SignupScreen() {
   const checkStep = (id: StepId): Errors => {
     const e: Errors = {};
     if (id === 'name') {
-      if (!firstName.trim()) e.firstName = 'We need your first name.';
-      if (!lastName.trim()) e.lastName = 'We need your last name.';
+      const first = nameProblem(firstName, 'First name');
+      const last = nameProblem(lastName, 'Last name');
+      if (first) e.firstName = first;
+      if (last) e.lastName = last;
+      if (middleName.trim().length > NAME_MAX) e.middleName = `Middle name can be at most ${NAME_MAX} characters.`;
     }
     if (id === 'gender' && !gender) e.gender = 'Pick the one that fits you.';
     if (id === 'dob') {
@@ -243,6 +258,7 @@ export function SignupScreen() {
               placeholder="Sunita"
               autoCapitalize="words"
               textContentType="givenName"
+              maxLength={NAME_MAX}
               autoFocus
               returnKeyType="next"
               value={firstName}
@@ -260,9 +276,14 @@ export function SignupScreen() {
               placeholder="—"
               autoCapitalize="words"
               textContentType="middleName"
+              maxLength={NAME_MAX}
               returnKeyType="next"
               value={middleName}
-              onChangeText={setMiddleName}
+              onChangeText={(t) => {
+                setMiddleName(t);
+                clearError('middleName');
+              }}
+              error={errors.middleName}
               onSubmitEditing={() => lastNameRef.current?.focus()}
             />
             <AuthField
@@ -271,6 +292,7 @@ export function SignupScreen() {
               placeholder="Mehta"
               autoCapitalize="words"
               textContentType="familyName"
+              maxLength={NAME_MAX}
               returnKeyType="next"
               value={lastName}
               onChangeText={(t) => {
@@ -501,9 +523,13 @@ export function SignupScreen() {
             <Ionicons name={otp ? 'shield-checkmark-outline' : step.icon} size={23} color={colors.primary} />
           </View>
           <AppText variant="display">{otp ? 'Check your WhatsApp' : step.title}</AppText>
-          <AppText variant="body" tone="secondary" style={{ marginTop: spacing.xs, marginBottom: spacing.xl }}>
-            {otp ? `We sent a 6-digit code to ${formatPhone(phone)}.` : step.hint}
-          </AppText>
+          {otp || step.hint ? (
+            <AppText variant="body" tone="secondary" style={{ marginTop: spacing.xs, marginBottom: spacing.xl }}>
+              {otp ? `We sent a 6-digit code to ${formatPhone(phone)}.` : step.hint}
+            </AppText>
+          ) : (
+            <View style={{ height: spacing.xl }} />
+          )}
 
           <ErrorBanner message={failure} />
 
