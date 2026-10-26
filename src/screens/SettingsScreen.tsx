@@ -200,7 +200,7 @@ export function SettingsScreen() {
             {demo ? (
               <ListRow
                 title="You’re exploring the demo"
-                subtitle="Log in or create a family account to see your real data"
+                subtitle={session ? 'Tap to go back to your real account' : 'Log in or create an account to see your real data'}
                 iconName="log-in-outline"
                 onPress={exitDemo}
               />

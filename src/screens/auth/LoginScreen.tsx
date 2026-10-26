@@ -139,12 +139,12 @@ export function LoginScreen() {
           >
             <Ionicons name="person-add-outline" size={18} color={colors.primary} />
             <AppText variant="subheading" tone="primary">
-              Create a family account
+              Create an account
             </AppText>
             <Ionicons name="arrow-forward" size={17} color={colors.primary} />
           </Pressable>
           <AppText variant="caption" tone="muted" center style={{ marginTop: spacing.sm }}>
-            Free · one account for up to 3 children
+            Free · add up to 3 student profiles
           </AppText>
         </View>
 

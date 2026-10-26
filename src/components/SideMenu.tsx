@@ -391,7 +391,7 @@ function Drawer({
                 {demo ? 'Demo mode' : accountName(profile, session)}
               </AppText>
               <AppText variant="caption" tone="muted">
-                {demo ? 'Exit & log in' : 'Log out'}
+                {demo ? (session ? 'Back to my account' : 'Exit & log in') : 'Log out'}
               </AppText>
             </View>
           </Pressable>

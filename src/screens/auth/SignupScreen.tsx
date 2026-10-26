@@ -18,7 +18,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, spacing } from '../../theme/tokens';
 import {
-  AccountType,
   describeAuthError,
   EMAIL_RE,
   Gender,
@@ -36,11 +35,10 @@ import { useToast } from '../../components/ui/Toast';
 import { AuthField, ErrorBanner, OptionCard, OtpInput, PasswordRules } from '../../components/auth/AuthKit';
 import { formatDateLong } from '../../lib/utils/format';
 
-type StepId = 'who' | 'name' | 'gender' | 'dob' | 'contact' | 'password';
+type StepId = 'name' | 'gender' | 'dob' | 'contact' | 'password';
 
 const STEPS: { id: StepId; icon: IconName; title: string; hint: string }[] = [
-  { id: 'who', icon: 'people-outline', title: 'Who is creating this account?', hint: 'The account holder must be 18 or older.' },
-  { id: 'name', icon: 'person-outline', title: 'What’s your name?', hint: 'As it should appear to your coaching centres.' },
+  { id: 'name', icon: 'person-outline', title: 'What’s your name?', hint: 'You can add up to 3 student profiles after signing up.' },
   { id: 'gender', icon: 'body-outline', title: 'How do you identify?', hint: 'Used only for how teachers address you.' },
   { id: 'dob', icon: 'calendar-outline', title: 'When were you born?', hint: 'We confirm the account holder is an adult.' },
   { id: 'contact', icon: 'logo-whatsapp', title: 'Where can we reach you?', hint: 'We’ll send a 6-digit code to this WhatsApp number.' },
@@ -53,7 +51,7 @@ const GENDERS: { value: Gender; label: string; icon: IconName }[] = [
   { value: 'other', label: 'Other / prefer not to say', icon: 'person-outline' },
 ];
 
-type Errors = Partial<Record<'role' | 'firstName' | 'lastName' | 'gender' | 'dob' | 'mobile' | 'email' | 'password' | 'confirm', string>>;
+type Errors = Partial<Record<'firstName' | 'lastName' | 'gender' | 'dob' | 'mobile' | 'email' | 'password' | 'confirm', string>>;
 
 const RESEND_SECONDS = 30;
 
@@ -64,7 +62,6 @@ export function SignupScreen() {
   const toast = useToast();
 
   // ── answers ──
-  const [role, setRole] = useState<AccountType | null>(null);
   const [firstName, setFirstName] = useState('');
   const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -120,7 +117,6 @@ export function SignupScreen() {
   // ── per-step validation ──
   const checkStep = (id: StepId): Errors => {
     const e: Errors = {};
-    if (id === 'who' && !role) e.role = 'Choose who is creating the account.';
     if (id === 'name') {
       if (!firstName.trim()) e.firstName = 'We need your first name.';
       if (!lastName.trim()) e.lastName = 'We need your last name.';
@@ -129,10 +125,7 @@ export function SignupScreen() {
     if (id === 'dob') {
       if (!dob) e.dob = 'Please choose your date of birth.';
       else if (!isEighteenOrOlder(dob)) {
-        e.dob =
-          role === 'student'
-            ? 'Students under 18 can’t open their own account. Ask a parent to create a family account and add you.'
-            : 'The account holder must be at least 18 years old.';
+        e.dob = 'The account holder must be at least 18 years old. Younger students are added as student profiles.';
       }
     }
     if (id === 'contact') {
@@ -171,7 +164,6 @@ export function SignupScreen() {
     setBusy(true);
     try {
       const e164 = await signupWithWhatsAppOtp({
-        role: role!,
         firstName: firstName.trim(),
         middleName: middleName.trim(),
         lastName: lastName.trim(),
@@ -242,33 +234,6 @@ export function SignupScreen() {
   // ── renderers ──
   const renderStep = () => {
     switch (step.id) {
-      case 'who':
-        return (
-          <View style={{ gap: spacing.md }}>
-            <OptionCard
-              icon="people"
-              title="I’m a parent or guardian"
-              subtitle="Manage up to 3 children — attendance, fees, marks."
-              selected={role === 'parent'}
-              onPress={() => {
-                setRole('parent');
-                clearError('role');
-              }}
-            />
-            <OptionCard
-              icon="school"
-              title="I’m a student"
-              subtitle="Your own account to track classes and results."
-              disabledNote="Only for students aged 18 and above."
-              selected={role === 'student'}
-              onPress={() => {
-                setRole('student');
-                clearError('role');
-              }}
-            />
-            {errors.role ? <InlineError text={errors.role} /> : null}
-          </View>
-        );
       case 'name':
         return (
           <>
@@ -380,20 +345,6 @@ export function SignupScreen() {
               <Ionicons name="chevron-forward" size={17} color={colors.textMuted} />
             </Pressable>
             {errors.dob ? <InlineError text={errors.dob} /> : null}
-            {errors.dob && role === 'student' ? (
-              <Button
-                label="Switch to a parent account"
-                variant="ghost"
-                size="sm"
-                iconName="people-outline"
-                onPress={() => {
-                  setRole('parent');
-                  setErrors({});
-                  swap(() => setIndex(0), -1);
-                }}
-                style={{ marginTop: spacing.sm }}
-              />
-            ) : null}
           </>
         );
       case 'contact':

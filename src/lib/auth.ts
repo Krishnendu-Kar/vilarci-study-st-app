@@ -102,11 +102,9 @@ export async function loginWithPassword(identifier: string, password: string) {
 
 // ─── signup ───────────────────────────────────────────────────────────────────
 
-export type AccountType = 'parent' | 'student';
 export type Gender = 'male' | 'female' | 'other';
 
 export interface SignupDetails {
-  role: AccountType;
   firstName: string;
   middleName: string;
   lastName: string;
@@ -121,7 +119,6 @@ export interface SignupDetails {
 export async function signupWithWhatsAppOtp(d: SignupDetails): Promise<string> {
   const phone = toE164(d.mobile);
   const data: Record<string, string> = {
-    role: d.role,
     first_name: d.firstName,
     middle_name: d.middleName,
     last_name: d.lastName,

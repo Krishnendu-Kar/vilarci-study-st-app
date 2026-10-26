@@ -1,11 +1,12 @@
 import React from 'react';
-import { Platform } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DarkTheme, DefaultTheme, NavigationContainer, Theme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator, NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../theme/ThemeProvider';
-import { fonts } from '../theme/tokens';
+import { elevation, fonts } from '../theme/tokens';
 import { navigationRef } from './navigationRef';
 import { SideMenuProvider } from '../components/SideMenu';
 
@@ -30,7 +31,9 @@ import { LoginScreen } from '../screens/auth/LoginScreen';
 import { SignupScreen } from '../screens/auth/SignupScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 import { useAuth } from '../lib/AuthProvider';
-import { ActivityIndicator, View } from 'react-native';
+import { RealHomeScreen } from '../screens/real/RealHomeScreen';
+import { StudentFormScreen } from '../screens/real/StudentFormScreen';
+import { AccountScreen } from '../screens/real/AccountScreen';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -39,6 +42,7 @@ const AcademicsStack = createNativeStackNavigator();
 const LearnStack = createNativeStackNavigator();
 const MoreStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
+const RealStack = createNativeStackNavigator();
 
 function AuthNavigator() {
   return (
@@ -145,6 +149,20 @@ export function RootNavigator() {
     );
   }
 
+  // Signed in → the real, database-connected app. The demo screens below are
+  // reached from its "Demo" button and keep tracking the original plan.
+  if (session && !demo) {
+    return (
+      <NavigationContainer theme={navTheme(isDark, colors)}>
+        <RealStack.Navigator screenOptions={pushOptions}>
+          <RealStack.Screen name="RealHome" component={RealHomeScreen} />
+          <RealStack.Screen name="StudentForm" component={StudentFormScreen} />
+          <RealStack.Screen name="Account" component={AccountScreen} />
+        </RealStack.Navigator>
+      </NavigationContainer>
+    );
+  }
+
   return (
     <SideMenuProvider>
       <NavigationContainer ref={navigationRef} theme={navTheme(isDark, colors)}>
@@ -174,6 +192,37 @@ export function RootNavigator() {
           <Tabs.Screen name="More" component={MoreNavigator} />
         </Tabs.Navigator>
       </NavigationContainer>
+      {session ? <BackToAccountPill /> : null}
     </SideMenuProvider>
+  );
+}
+
+/** Floating way back from the demo screens to the signed-in real app. */
+function BackToAccountPill() {
+  const { colors } = useTheme();
+  const { exitDemo } = useAuth();
+  const insets = useSafeAreaInsets();
+  return (
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: (Platform.OS === 'ios' ? 84 : 62) + insets.bottom + 10, alignItems: 'center' }}>
+      <Pressable
+        onPress={exitDemo}
+        accessibilityRole="button"
+        accessibilityLabel="Back to my account"
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingHorizontal: 14,
+          paddingVertical: 9,
+          borderRadius: 999,
+          backgroundColor: colors.primary,
+          opacity: pressed ? 0.85 : 1,
+          ...elevation(2, colors.shadowColor, colors.shadowOpacity + 0.1),
+        })}
+      >
+        <Ionicons name="arrow-undo-outline" size={15} color="#fff" />
+        <Text style={{ color: '#fff', fontFamily: fonts.sansSemibold, fontSize: 12.5 }}>Demo · Back to my account</Text>
+      </Pressable>
+    </View>
   );
 }
