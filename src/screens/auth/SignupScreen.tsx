@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -233,12 +233,10 @@ export function SignupScreen() {
   const clearError = (key: keyof Errors) => errors[key] && setErrors((e) => ({ ...e, [key]: undefined }));
 
   // ── date of birth ──
-  const onAndroidDate = (event: DateTimePickerEvent, date?: Date) => {
+  const onAndroidDate = (date: Date) => {
     setPickerOpen(false);
-    if (event.type === 'set' && date) {
-      setDob(date);
-      clearError('dob');
-    }
+    setDob(date);
+    clearError('dob');
   };
 
   // ── renderers ──
@@ -620,7 +618,13 @@ export function SignupScreen() {
 
       {/* ── date picker: Android uses the system dialog, iOS a sheet ── */}
       {pickerOpen && Platform.OS === 'android' ? (
-        <DateTimePicker value={draftDob} mode="date" maximumDate={new Date()} onChange={onAndroidDate} />
+        <DateTimePicker
+          value={draftDob}
+          mode="date"
+          maximumDate={new Date()}
+          onValueChange={(_, date) => onAndroidDate(date)}
+          onDismiss={() => setPickerOpen(false)}
+        />
       ) : null}
       {Platform.OS === 'ios' ? (
         <Sheet visible={pickerOpen} onClose={() => setPickerOpen(false)} title="Date of birth" scroll={false}>
@@ -630,7 +634,7 @@ export function SignupScreen() {
             display="spinner"
             maximumDate={new Date()}
             themeVariant={isDark ? 'dark' : 'light'}
-            onChange={(_, d) => d && setDraftDob(d)}
+            onValueChange={(_, d) => setDraftDob(d)}
           />
           <Button
             label="Done"
