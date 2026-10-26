@@ -3,12 +3,12 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeProvider';
 import { spacing } from '../theme/tokens';
-import { Chip } from './ui/base';
+import { Chip, IconName } from './ui/base';
 
 export interface SubNavItem {
   route: string;
   label: string;
-  icon: string;
+  icon: IconName;
 }
 
 /**
@@ -55,16 +55,16 @@ export function SubNav({ items }: { items: SubNavItem[] }) {
 }
 
 export const ACADEMIC_NAV: SubNavItem[] = [
-  { route: 'Timetable', label: 'Timetable', icon: '🗓️' },
-  { route: 'Attendance', label: 'Attendance', icon: '📋' },
-  { route: 'Syllabus', label: 'Syllabus', icon: '📖' },
-  { route: 'Tests', label: 'Tests', icon: '📝' },
-  { route: 'Marksheets', label: 'Marksheets', icon: '🧾' },
+  { route: 'Timetable', label: 'Timetable', icon: 'calendar-outline' },
+  { route: 'Attendance', label: 'Attendance', icon: 'clipboard-outline' },
+  { route: 'Syllabus', label: 'Syllabus', icon: 'book-outline' },
+  { route: 'Tests', label: 'Tests', icon: 'create-outline' },
+  { route: 'Marksheets', label: 'Marksheets', icon: 'receipt-outline' },
 ];
 
 export const LEARN_NAV: SubNavItem[] = [
-  { route: 'Labs', label: 'STEM Labs', icon: '🧪' },
-  { route: 'Videos', label: 'Lessons', icon: '📺' },
-  { route: 'Focus', label: 'Focus Room', icon: '🎯' },
-  { route: 'Practice', label: 'Practice', icon: '❓' },
+  { route: 'Labs', label: 'STEM Labs', icon: 'flask-outline' },
+  { route: 'Videos', label: 'Lessons', icon: 'play-circle-outline' },
+  { route: 'Focus', label: 'Focus Room', icon: 'locate-outline' },
+  { route: 'Practice', label: 'Practice', icon: 'help-circle-outline' },
 ];

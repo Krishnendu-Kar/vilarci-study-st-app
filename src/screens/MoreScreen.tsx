@@ -7,6 +7,7 @@ import { elevation, radius, spacing } from '../theme/tokens';
 import { useFees, useHousehold, usePoints, useStudentContext } from '../lib/api/hooks';
 import { AppText, Avatar, Card, Divider, HeroCard, ListRow, Pill, Row, SectionHeader } from '../components/ui/base';
 import { Screen } from '../components/ui/Screen';
+import { ScreenTitle } from '../components/ScreenTitle';
 import { rupees } from '../lib/utils/format';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -28,7 +29,7 @@ export function MoreScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
       <Screen topInset>
-        <AppText variant="display">More</AppText>
+        <ScreenTitle title="More" />
 
         {/* ── Identity ────────────────────────────────────────────────────── */}
         <HeroCard style={{ marginTop: spacing.lg }}>
@@ -110,15 +111,6 @@ export function MoreScreen() {
           </Card>
         </View>
 
-        <Card muted style={{ marginTop: spacing.lg }}>
-          <Row gap={spacing.sm}>
-            <Ionicons name="school-outline" size={16} color={colors.textMuted} />
-            <AppText variant="caption" tone="muted" style={{ flex: 1 }}>
-              Teacher app coming soon — classes, attendance and awards from the faculty side.
-            </AppText>
-            <Pill label="Soon" tone="gold" />
-          </Row>
-        </Card>
       </Screen>
     </View>
   );

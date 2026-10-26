@@ -3,6 +3,7 @@ import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, spacing } from '../../theme/tokens';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { AppText, Row } from './base';
 
 /** Bottom sheet modal — the mobile stand-in for the website's dialog modals. */
@@ -75,9 +76,7 @@ export function Sheet({
                 justifyContent: 'center',
               }}
             >
-              <AppText variant="bodyStrong" tone="secondary">
-                ✕
-              </AppText>
+              <Ionicons name="close" size={17} color={colors.textSecondary} />
             </Pressable>
           </Row>
 

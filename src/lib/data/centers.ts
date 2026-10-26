@@ -142,5 +142,5 @@ export const household = {
   primary_phone: '+91 98765 11223',
   email: 'mehta.family@gmail.com',
   city: 'Pune, Maharashtra',
-  max_profiles: 5,
+  max_profiles: 3,
 };

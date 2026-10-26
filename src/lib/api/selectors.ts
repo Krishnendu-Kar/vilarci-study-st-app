@@ -362,7 +362,7 @@ export function motivationBanner(batch: BatchLeaderboard, student: Student): Mot
       subtitle: topper
         ? `${topper.student_name} leads this batch with ${topper.points.toLocaleString('en-IN')} pts. Join the batch to appear on this board.`
         : 'No standings published for this batch yet.',
-      icon: '👀',
+      icon: 'eye-outline',
     };
   }
 
@@ -371,7 +371,7 @@ export function motivationBanner(batch: BatchLeaderboard, student: Student): Mot
       kind: 'rank1',
       title: `Incredible! You are Rank #1 in this batch`,
       subtitle: `${self.points.toLocaleString('en-IN')} pts and a ${self.streak}. Hold the crown — keep the streak alive.`,
-      icon: '🏆',
+      icon: 'trophy-outline',
     };
   }
 
@@ -383,7 +383,7 @@ export function motivationBanner(batch: BatchLeaderboard, student: Student): Mot
     subtitle: `Only ${gap.toLocaleString('en-IN')} pts needed to overtake ${
       peerAbove?.student_name ?? 'the student above'
     } for Rank #${self.rank - 1}. Complete 1 quiz or test to climb up.`,
-    icon: '⚡',
+    icon: 'flash-outline',
   };
 }
 

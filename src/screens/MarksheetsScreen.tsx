@@ -55,12 +55,12 @@ export function MarksheetsScreen() {
                         <Pill
                           label={d.type === 'marksheet' ? 'Marksheet' : 'Certificate'}
                           tone={d.type === 'marksheet' ? 'primary' : 'accent'}
-                          icon={d.type === 'marksheet' ? '🧾' : '🎖️'}
+                          icon={d.type === 'marksheet' ? 'receipt-outline' : 'ribbon-outline'}
                         />
                         <Pill
                           label={revoked ? 'Revoked' : 'Valid'}
                           tone={revoked ? 'error' : 'success'}
-                          icon={revoked ? '✕' : '✓'}
+                          icon={revoked ? 'close' : 'checkmark'}
                         />
                       </Row>
                       <AppText variant="subheading" style={{ marginTop: 7 }}>
@@ -87,7 +87,7 @@ export function MarksheetsScreen() {
         ) : (
           <View style={{ marginTop: spacing.lg }}>
             <EmptyState
-              icon="🧾"
+              icon="receipt-outline"
               title="No documents issued yet"
               message="Official marksheets and certificates appear after each term evaluation."
             />
@@ -95,7 +95,7 @@ export function MarksheetsScreen() {
         )}
 
         <View style={{ marginTop: spacing.xl }}>
-          <SectionHeader icon="🛡️" title="About verification" />
+          <SectionHeader icon="shield-checkmark-outline" title="About verification" />
           <Card muted>
             <AppText variant="caption" tone="secondary">
               Every document carries a unique verification code issued by the coaching centre. Schools,
@@ -159,7 +159,7 @@ function DocumentSheet({ document: doc, onClose }: { document: AcademicDocument 
         <KeyValue label="Verification code" value={doc.code} valueTone="primary" />
       </Card>
 
-      <SectionHeader title="Subject marks" icon="📊" />
+      <SectionHeader title="Subject marks" icon="bar-chart-outline" />
       <Card>
         {doc.subject_marks.map((m, idx) => {
           const pct = (m.obtained / m.max) * 100;

@@ -6,6 +6,8 @@ import { createNativeStackNavigator, NativeStackNavigationOptions } from '@react
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../theme/ThemeProvider';
 import { fonts } from '../theme/tokens';
+import { navigationRef } from './navigationRef';
+import { SideMenuProvider } from '../components/SideMenu';
 
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { TimetableScreen } from '../screens/TimetableScreen';
@@ -24,6 +26,11 @@ import { ParentScreen } from '../screens/ParentScreen';
 import { VerifyScreen } from '../screens/VerifyScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { HelpScreen } from '../screens/HelpScreen';
+import { LoginScreen } from '../screens/auth/LoginScreen';
+import { SignupScreen } from '../screens/auth/SignupScreen';
+import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
+import { useAuth } from '../lib/AuthProvider';
+import { ActivityIndicator, View } from 'react-native';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -31,6 +38,17 @@ const Tabs = createBottomTabNavigator();
 const AcademicsStack = createNativeStackNavigator();
 const LearnStack = createNativeStackNavigator();
 const MoreStack = createNativeStackNavigator();
+const AuthStack = createNativeStackNavigator();
+
+function AuthNavigator() {
+  return (
+    <AuthStack.Navigator screenOptions={pushOptions}>
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Signup" component={SignupScreen} />
+      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+    </AuthStack.Navigator>
+  );
+}
 
 /** Sections switched by the in-screen chip bar: cross-fade, no back gesture. */
 const sectionOptions: NativeStackNavigationOptions = {
@@ -108,34 +126,54 @@ function navTheme(isDark: boolean, colors: ReturnType<typeof useTheme>['colors']
 
 export function RootNavigator() {
   const { colors, isDark } = useTheme();
+  const { session, loading, recovering, demo } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgApp }}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Signed-out (or mid password reset) users only see the auth screens.
+  if ((!session && !demo) || recovering) {
+    return (
+      <NavigationContainer theme={navTheme(isDark, colors)}>
+        <AuthNavigator />
+      </NavigationContainer>
+    );
+  }
 
   return (
-    <NavigationContainer theme={navTheme(isDark, colors)}>
-      <Tabs.Navigator
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textMuted,
-          tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-            height: Platform.OS === 'ios' ? 84 : 62,
-            paddingTop: 6,
-            paddingBottom: Platform.OS === 'ios' ? 26 : 8,
-          },
-          tabBarLabelStyle: { fontFamily: fonts.sansSemibold, fontSize: 10.5 },
-          tabBarIcon: ({ color, size, focused }) => {
-            const [active, idle] = TAB_ICONS[route.name] ?? ['ellipse', 'ellipse-outline'];
-            return <Ionicons name={focused ? active : idle} size={size - 2} color={color} />;
-          },
-        })}
-      >
-        <Tabs.Screen name="Home" component={DashboardScreen} />
-        <Tabs.Screen name="Academics" component={AcademicsNavigator} />
-        <Tabs.Screen name="Learn" component={LearnNavigator} />
-        <Tabs.Screen name="Honours" component={HonorsScreen} />
-        <Tabs.Screen name="More" component={MoreNavigator} />
-      </Tabs.Navigator>
-    </NavigationContainer>
+    <SideMenuProvider>
+      <NavigationContainer ref={navigationRef} theme={navTheme(isDark, colors)}>
+        <Tabs.Navigator
+          screenOptions={({ route }) => ({
+            headerShown: false,
+            tabBarActiveTintColor: colors.primary,
+            tabBarInactiveTintColor: colors.textMuted,
+            tabBarStyle: {
+              backgroundColor: colors.surface,
+              borderTopColor: colors.border,
+              height: Platform.OS === 'ios' ? 84 : 62,
+              paddingTop: 6,
+              paddingBottom: Platform.OS === 'ios' ? 26 : 8,
+            },
+            tabBarLabelStyle: { fontFamily: fonts.sansSemibold, fontSize: 10.5 },
+            tabBarIcon: ({ color, size, focused }) => {
+              const [active, idle] = TAB_ICONS[route.name] ?? ['ellipse', 'ellipse-outline'];
+              return <Ionicons name={focused ? active : idle} size={size - 2} color={color} />;
+            },
+          })}
+        >
+          <Tabs.Screen name="Home" component={DashboardScreen} />
+          <Tabs.Screen name="Academics" component={AcademicsNavigator} />
+          <Tabs.Screen name="Learn" component={LearnNavigator} />
+          <Tabs.Screen name="Honours" component={HonorsScreen} />
+          <Tabs.Screen name="More" component={MoreNavigator} />
+        </Tabs.Navigator>
+      </NavigationContainer>
+    </SideMenuProvider>
   );
 }

@@ -36,7 +36,7 @@ interface AppState {
   language: Language;
   setLanguage: (lang: Language) => void;
 
-  // ── locally-added sibling profiles (household cap of 5) ───────────────────
+  // ── locally-added sibling profiles (household cap of 3) ───────────────────
   addedStudents: Student[];
   addStudentProfile: (profile: Omit<Student, 'id'>) => string;
 

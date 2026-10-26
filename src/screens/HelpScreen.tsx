@@ -3,7 +3,7 @@ import { LayoutAnimation, Linking, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../theme/ThemeProvider';
 import { radius, spacing } from '../theme/tokens';
-import { AppText, Card, Divider, IconBubble, ListRow, Row, SectionHeader } from '../components/ui/base';
+import { AppText, Card, Divider, IconBubble, IconName, ListRow, Row, SectionHeader } from '../components/ui/base';
 import { Screen } from '../components/ui/Screen';
 import { useToast } from '../components/ui/Toast';
 import { ScreenTitle } from '../components/ScreenTitle';
@@ -11,12 +11,12 @@ import { ScreenTitle } from '../components/ScreenTitle';
 const SUPPORT_EMAIL = 'support@vilarci.study';
 const SUPPORT_PHONE = '+91 80 4567 1200';
 
-const POINT_RULES: { emoji: string; label: string; points: string }[] = [
-  { emoji: '📍', label: 'On-time QR check-in', points: '+10' },
-  { emoji: '📖', label: 'Topic self-revision confirmed', points: '+15' },
-  { emoji: '🎯', label: 'Focus Room session completed', points: '+25' },
-  { emoji: '❓', label: 'Practice set cleared at 80%+', points: '+30' },
-  { emoji: '🏅', label: 'Teacher awards', points: 'varies' },
+const POINT_RULES: { icon: IconName; label: string; points: string }[] = [
+  { icon: 'location-outline', label: 'On-time QR check-in', points: '+10' },
+  { icon: 'book-outline', label: 'Topic self-revision confirmed', points: '+15' },
+  { icon: 'locate-outline', label: 'Focus Room session completed', points: '+25' },
+  { icon: 'help-circle-outline', label: 'Practice set cleared at 80%+', points: '+30' },
+  { icon: 'medal-outline', label: 'Teacher awards', points: 'varies' },
 ];
 
 const FAQ: { q: string; a: string }[] = [
@@ -30,7 +30,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'Can one parent account manage several children?',
-    a: 'Yes — a household can hold up to five student profiles. Tap the student name at the top left to switch or add a profile; More → Household shows everyone at a glance.',
+    a: 'Yes — a family account can hold up to three children. Tap the student name at the top left to switch or add a profile; More → Household shows everyone at a glance.',
   },
   {
     q: 'Why is my attendance flagged?',
@@ -73,7 +73,7 @@ export function HelpScreen() {
               <View key={r.label}>
                 {i > 0 ? <Divider /> : null}
                 <Row gap={spacing.md} style={{ paddingVertical: spacing.sm + 2 }}>
-                  <IconBubble emoji={r.emoji} size={32} />
+                  <IconBubble name={r.icon} size={32} tint={colors.gold} bg={colors.goldSubtle} />
                   <AppText variant="bodyStrong" style={{ flex: 1 }}>
                     {r.label}
                   </AppText>

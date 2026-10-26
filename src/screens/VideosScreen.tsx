@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StatusBar, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -12,6 +12,7 @@ import { Screen } from '../components/ui/Screen';
 import { ContextHeader } from '../components/ContextHeader';
 import { LEARN_NAV, SubNav } from '../components/SubNav';
 import type { Video } from '../lib/data/types';
+import { ALL_MODAL_ORIENTATIONS, useOrientation } from '../lib/utils/orientation';
 
 export function VideosScreen() {
   const { colors, subject } = useTheme();
@@ -98,7 +99,7 @@ export function VideosScreen() {
             })
           ) : (
             <EmptyState
-              icon="📺"
+              icon="play-circle-outline"
               title="No lessons published yet"
               message="Your teachers' recorded lessons will appear here as they upload them."
             />
@@ -118,88 +119,152 @@ export function VideosScreen() {
   );
 }
 
+/**
+ * YouTube rejects embeds that don't identify the embedding app (error 153).
+ * Serving the player page from a real origin makes the WebView send a Referer.
+ */
+const EMBED_ORIGIN = 'https://vilarci.study';
+
 function VideoPlayer({ video, onClose }: { video: Video | null; onClose: () => void }) {
+  if (!video) return null;
+  return <PlayerModal key={video.id} video={video} onClose={onClose} />;
+}
+
+function PlayerModal({ video, onClose }: { video: Video; onClose: () => void }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const [loading, setLoading] = useState(true);
+  const landscape = width > height;
+  // Free rotation while watching: turn the phone sideways for a full-width player.
+  useOrientation('free');
 
-  if (!video) return null;
+  const origin = encodeURIComponent(EMBED_ORIGIN);
+  const params = `playsinline=1&rel=0&modestbranding=1&origin=${origin}&widget_referrer=${origin}`;
 
   const html = `<!DOCTYPE html><html><head>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <style>html,body{margin:0;padding:0;background:#000;height:100%}iframe{border:0;width:100%;height:100%}</style>
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <style>html,body{margin:0;padding:0;background:#000;height:100%;overflow:hidden}iframe{border:0;width:100%;height:100%}</style>
   </head><body>
-    <iframe src="https://www.youtube.com/embed/${video.youtube_id}?playsinline=1&rel=0&modestbranding=1"
-      allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+    <iframe src="https://www.youtube.com/embed/${video.youtube_id}?${params}"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
       allowfullscreen></iframe>
   </body></html>`;
 
+  const player = (
+    <View style={landscape ? { flex: 1, backgroundColor: '#000' } : { aspectRatio: 16 / 9, backgroundColor: '#000' }}>
+      <WebView
+        source={{ html, baseUrl: EMBED_ORIGIN }}
+        originWhitelist={['*']}
+        onLoadEnd={() => setLoading(false)}
+        allowsFullscreenVideo
+        allowsInlineMediaPlayback
+        javaScriptEnabled
+        domStorageEnabled
+        mediaPlaybackRequiresUserAction={false}
+        style={{ flex: 1, backgroundColor: '#000' }}
+      />
+      {loading ? (
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+          <ActivityIndicator color="#fff" />
+        </View>
+      ) : null}
+    </View>
+  );
+
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={{ flex: 1, backgroundColor: colors.bgApp, paddingTop: insets.top }}>
-        <Row
-          justify="space-between"
-          gap={spacing.md}
-          style={{
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.sm,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: colors.border,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            <AppText variant="subheading" numberOfLines={1}>
-              {video.title}
-            </AppText>
-            <AppText variant="caption" tone="muted" numberOfLines={1}>
-              {video.teacher_name} · {video.duration}
-            </AppText>
-          </View>
+    <Modal
+      visible
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      supportedOrientations={[...ALL_MODAL_ORIENTATIONS]}
+    >
+      <StatusBar hidden={landscape} />
+      {landscape ? (
+        <View style={{ flex: 1, backgroundColor: '#000', paddingLeft: insets.left, paddingRight: insets.right }}>
+          {player}
           <Pressable
             onPress={onClose}
             hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Close video"
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              backgroundColor: colors.surfaceMuted,
+              position: 'absolute',
+              top: Math.max(insets.top, spacing.md),
+              right: Math.max(insets.right, spacing.md),
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: 'rgba(0,0,0,0.55)',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Ionicons name="close" size={17} color={colors.textSecondary} />
+            <Ionicons name="close" size={18} color="#fff" />
           </Pressable>
-        </Row>
-
-        <View style={{ aspectRatio: 16 / 9, backgroundColor: '#000' }}>
-          <WebView
-            source={{ html }}
-            onLoadEnd={() => setLoading(false)}
-            allowsFullscreenVideo
-            javaScriptEnabled
-            domStorageEnabled
-            mediaPlaybackRequiresUserAction={false}
-            style={{ flex: 1, backgroundColor: '#000' }}
-          />
-          {loading ? (
-            <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-              <ActivityIndicator color="#fff" />
-            </View>
-          ) : null}
         </View>
+      ) : (
+        <View style={{ flex: 1, backgroundColor: colors.bgApp, paddingTop: insets.top }}>
+          <Row
+            justify="space-between"
+            gap={spacing.md}
+            style={{
+              paddingHorizontal: spacing.lg,
+              paddingVertical: spacing.sm,
+              borderBottomWidth: StyleSheet.hairlineWidth,
+              borderBottomColor: colors.border,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <AppText variant="subheading" numberOfLines={1}>
+                {video.title}
+              </AppText>
+              <AppText variant="caption" tone="muted" numberOfLines={1}>
+                {video.teacher_name} · {video.duration}
+              </AppText>
+            </View>
+            <Pressable
+              onPress={onClose}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Close video"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: colors.surfaceMuted,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="close" size={17} color={colors.textSecondary} />
+            </Pressable>
+          </Row>
 
-        <Screen>
-          <AppText variant="overline" tone="muted">
-            {video.subject.toUpperCase()} · {video.chapter.toUpperCase()}
-          </AppText>
-          <AppText variant="title" style={{ marginTop: 6 }}>
-            {video.title}
-          </AppText>
-          <AppText variant="body" tone="secondary" style={{ marginTop: spacing.md }}>
-            {video.description}
-          </AppText>
-        </Screen>
-      </View>
+          {player}
+
+          <Screen>
+            <AppText variant="overline" tone="muted">
+              {video.subject.toUpperCase()} · {video.chapter.toUpperCase()}
+            </AppText>
+            <AppText variant="title" style={{ marginTop: 6 }}>
+              {video.title}
+            </AppText>
+            <AppText variant="body" tone="secondary" style={{ marginTop: spacing.md }}>
+              {video.description}
+            </AppText>
+            <Row gap={6} style={{ marginTop: spacing.lg }}>
+              <Ionicons name="phone-landscape-outline" size={14} color={colors.textMuted} />
+              <AppText variant="caption" tone="muted">
+                Turn your phone sideways for a full-screen player.
+              </AppText>
+            </Row>
+          </Screen>
+        </View>
+      )}
     </Modal>
   );
 }

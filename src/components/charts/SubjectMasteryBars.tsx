@@ -10,7 +10,7 @@ export function SubjectMasteryBars({ data }: { data: SubjectMastery[] }) {
   const { subject } = useTheme();
 
   if (!data.length) {
-    return <EmptyState icon="📊" title="No marks recorded yet" message="Subject mastery appears once your teachers publish test marks." />;
+    return <EmptyState icon="bar-chart-outline" title="No marks recorded yet" message="Subject mastery appears once your teachers publish test marks." />;
   }
 
   return (

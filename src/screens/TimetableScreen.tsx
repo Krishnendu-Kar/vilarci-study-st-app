@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { spacing } from '../theme/tokens';
 import { useStudentContext, useTimetable } from '../lib/api/hooks';
 import { useAppStore } from '../lib/store/useAppStore';
@@ -68,7 +69,7 @@ export function TimetableScreen() {
                 {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m of class time
               </AppText>
             </View>
-            {isToday ? <Pill label="Live day" tone="success" icon="●" /> : null}
+            {isToday ? <Pill label="Live day" tone="success" icon="radio-button-on" /> : null}
           </Row>
         </Card>
 
@@ -98,12 +99,15 @@ export function TimetableScreen() {
                       <AppText variant="caption" tone="secondary">
                         {c.teacher}
                       </AppText>
-                      <AppText variant="caption" tone="muted">
-                        📍 {c.room}
-                      </AppText>
+                      <Row gap={4}>
+                        <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+                        <AppText variant="caption" tone="muted">
+                          {c.room}
+                        </AppText>
+                      </Row>
                       <Row gap={5} wrap style={{ marginTop: 6 }}>
                         <Pill label={c.centerName} tone="primary" />
-                        {done ? <Pill label="Attended" tone="success" icon="✓" /> : null}
+                        {done ? <Pill label="Attended" tone="success" icon="checkmark" /> : null}
                       </Row>
                     </View>
                     {isToday && !done ? (
@@ -115,7 +119,7 @@ export function TimetableScreen() {
             })
           ) : (
             <EmptyState
-              icon="🌤️"
+              icon="partly-sunny-outline"
               title={`No classes on ${WEEKDAYS_LONG[day]}`}
               message="A free slot — a good moment for the Focus Room or a revision pass."
             />
@@ -125,7 +129,7 @@ export function TimetableScreen() {
         {/* Per-centre weekly load */}
         {ctx.enrolledCenters.length > 1 ? (
           <View style={{ marginTop: spacing.xl }}>
-            <SectionHeader icon="🏛️" title="Weekly load by centre" />
+            <SectionHeader icon="business-outline" title="Weekly load by centre" />
             <Card>
               {ctx.enrolledCenters.map((c, idx) => {
                 const centerEntries = entries.filter((e) => e.center_id === c.id);

@@ -18,7 +18,7 @@ export function ScoreTrendChart({ points }: { points: ScorePoint[] }) {
   if (points.length < 2) {
     return (
       <EmptyState
-        icon="📈"
+        icon="trending-up-outline"
         title="Not enough tests yet"
         message="Two or more graded assessments are needed to plot a performance trend."
       />

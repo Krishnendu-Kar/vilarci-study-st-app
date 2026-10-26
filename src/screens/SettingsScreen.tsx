@@ -24,6 +24,8 @@ import { Sheet } from '../components/ui/Sheet';
 import { useToast } from '../components/ui/Toast';
 import { Field } from '../components/ContextHeader';
 import { ScreenTitle } from '../components/ScreenTitle';
+import { accountName, useAuth } from '../lib/AuthProvider';
+import { signOut } from '../lib/auth';
 import { formatDate, rupees } from '../lib/utils/format';
 
 type ContactKey = 'father' | 'mother' | 'guardian';
@@ -65,6 +67,8 @@ export function SettingsScreen() {
   const [joinCode, setJoinCode] = useState('');
   const [joinError, setJoinError] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const { session, profile, demo, exitDemo } = useAuth();
 
   const submitJoin = () => {
     const result = joinCenterByCode(student.id, joinCode);
@@ -187,6 +191,54 @@ export function SettingsScreen() {
             value={language}
             onChange={(v) => setLanguage(v as Language)}
           />
+        </View>
+
+        {/* ── Account ─────────────────────────────────────────────────────── */}
+        <View style={{ marginTop: spacing.xxl }}>
+          <SectionHeader title="Account" />
+          <Card>
+            {demo ? (
+              <ListRow
+                title="You’re exploring the demo"
+                subtitle="Log in or create a family account to see your real data"
+                iconName="log-in-outline"
+                onPress={exitDemo}
+              />
+            ) : (
+              <>
+                <KeyValue label="Signed in as" value={accountName(profile, session)} />
+                <KeyValue
+                  label="Account type"
+                  value={profile?.role === 'student' ? 'Student (18+)' : profile?.role === 'teacher' ? 'Teacher' : 'Parent / guardian'}
+                />
+                <KeyValue label="WhatsApp" value={profile?.phone ?? session?.user.phone ?? '—'} />
+                <Divider style={{ marginVertical: spacing.sm }} />
+                {confirmLogout ? (
+                  <View>
+                    <AppText variant="subheading">Log out of Vilarci Study?</AppText>
+                    <Row gap={spacing.sm} style={{ marginTop: spacing.md }}>
+                      <Button label="Cancel" variant="secondary" size="sm" onPress={() => setConfirmLogout(false)} />
+                      <Button
+                        label="Log out"
+                        variant="danger"
+                        size="sm"
+                        iconName="log-out-outline"
+                        onPress={() => signOut().catch(() => toast.toast('Couldn’t log out. Try again.', 'error'))}
+                      />
+                    </Row>
+                  </View>
+                ) : (
+                  <ListRow
+                    title="Log out"
+                    subtitle="You can log back in with your mobile number"
+                    iconName="log-out-outline"
+                    tint={colors.error}
+                    onPress={() => setConfirmLogout(true)}
+                  />
+                )}
+              </>
+            )}
+          </Card>
         </View>
 
         {/* ── Data ────────────────────────────────────────────────────────── */}

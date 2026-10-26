@@ -20,7 +20,6 @@ export function Button({
   onPress,
   variant = 'primary',
   size = 'md',
-  icon,
   iconName,
   disabled,
   loading,
@@ -32,8 +31,6 @@ export function Button({
   onPress?: () => void;
   variant?: Variant;
   size?: Size;
-  /** Emoji glyph (legacy call sites). Prefer `iconName`. */
-  icon?: string;
   iconName?: React.ComponentProps<typeof Ionicons>['name'];
   disabled?: boolean;
   loading?: boolean;
@@ -69,7 +66,6 @@ export function Button({
         <>
           {iconName ? <Ionicons name={iconName} size={s.icon} color={fg} /> : null}
           <Text style={{ fontFamily: fonts.sansSemibold, fontSize: s.font, color: fg, letterSpacing: -0.1 }}>
-            {!iconName && icon ? `${icon}  ` : ''}
             {label}
           </Text>
         </>

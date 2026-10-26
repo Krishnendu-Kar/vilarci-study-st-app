@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../theme/ThemeProvider';
+import { iconForEmoji } from '../lib/utils/icons';
+import type { IconName } from '../components/ui/base';
 import { radius, spacing } from '../theme/tokens';
 import { useBatches, usePoints, useStudentContext, useTopScholars } from '../lib/api/hooks';
 import {
@@ -151,7 +153,11 @@ export function HonorsScreen() {
               }}
             >
               <Row gap={spacing.md} align="flex-start">
-                <AppText style={{ fontSize: 22 }}>{banner.icon}</AppText>
+                <Ionicons
+                  name={banner.icon as IconName}
+                  size={22}
+                  color={banner.kind === 'rank1' ? colors.gold : banner.kind === 'ranked' ? colors.primary : colors.textMuted}
+                />
                 <View style={{ flex: 1 }}>
                   <AppText variant="subheading">{banner.title}</AppText>
                   <AppText variant="caption" tone="secondary" style={{ marginTop: 3 }}>
@@ -208,7 +214,7 @@ export function HonorsScreen() {
             </Card>
           ) : (
             <EmptyState
-              icon="🏅"
+              icon="medal-outline"
               title="No batch standings"
               message="Once your teacher publishes the batch board, your peer ranking appears here."
             />
@@ -238,7 +244,7 @@ export function HonorsScreen() {
                     justifyContent: 'center',
                   }}
                 >
-                  <AppText style={{ fontSize: 19 }}>{b.icon_emoji}</AppText>
+                  <Ionicons name={iconForEmoji(b.icon_emoji)} size={20} color={b.earned ? colors.gold : colors.textMuted} />
                 </View>
                 <AppText variant="subheading" style={{ marginTop: spacing.md }} numberOfLines={1}>
                   {b.name}
@@ -248,7 +254,7 @@ export function HonorsScreen() {
                 </AppText>
                 <View style={{ marginTop: spacing.sm }}>
                   {b.earned ? (
-                    <Pill label={b.earned_date ? formatDate(b.earned_date) : 'Unlocked'} tone="success" icon="✓" />
+                    <Pill label={b.earned_date ? formatDate(b.earned_date) : 'Unlocked'} tone="success" icon="checkmark" />
                   ) : (
                     <Pill label={(b as { progress?: string }).progress ?? 'Locked'} tone="neutral" />
                   )}
@@ -263,8 +269,8 @@ export function HonorsScreen() {
           <SectionHeader title="Honours ledger" subtitle="Every point, and who awarded it" />
           <Row gap={spacing.sm} style={{ marginBottom: spacing.md }}>
             <Chip label="All" selected={filter === 'all'} onPress={() => setFilter('all')} />
-            <Chip label="Faculty" icon="🏅" selected={filter === 'teacher'} onPress={() => setFilter('teacher')} />
-            <Chip label="System" icon="⚙️" selected={filter === 'system'} onPress={() => setFilter('system')} />
+            <Chip label="Faculty" icon="medal-outline" selected={filter === 'teacher'} onPress={() => setFilter('teacher')} />
+            <Chip label="System" icon="cog-outline" selected={filter === 'system'} onPress={() => setFilter('system')} />
           </Row>
 
           {ledger.length ? (
@@ -311,7 +317,7 @@ export function HonorsScreen() {
               ))}
             </Card>
           ) : (
-            <EmptyState icon="📭" title="No entries in this filter" />
+            <EmptyState icon="file-tray-outline" title="No entries in this filter" />
           )}
         </View>
 

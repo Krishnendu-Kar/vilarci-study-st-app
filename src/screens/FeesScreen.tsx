@@ -66,14 +66,14 @@ export function FeesScreen() {
             value={rupees(summary.pendingTotal)}
             sub={`${summary.pendingCount} month${summary.pendingCount === 1 ? '' : 's'} pending`}
             tone={summary.overdue.length ? 'error' : summary.pendingTotal ? 'warning' : 'success'}
-            icon="⏳"
+            icon="hourglass-outline"
           />
           <StatTile
             label="Cleared"
             value={rupees(summary.paidTotal)}
             sub="Recorded by your centres"
             tone="success"
-            icon="✓"
+            icon="checkmark"
           />
         </Row>
 
@@ -106,7 +106,7 @@ export function FeesScreen() {
         {/* Per-centre rollup */}
         {byCenter.length > 1 ? (
           <View style={{ marginTop: spacing.xl }}>
-            <SectionHeader icon="🏛️" title="By coaching centre" />
+            <SectionHeader icon="business-outline" title="By coaching centre" />
             <Card>
               {byCenter.map(([centerId, b], idx) => {
                 const c = centerById(centerId);
@@ -146,11 +146,11 @@ export function FeesScreen() {
 
         {/* Ledger */}
         <View style={{ marginTop: spacing.xl }}>
-          <SectionHeader icon="📒" title="Month-by-month ledger" subtitle="Tap a row for payment details" />
+          <SectionHeader icon="reader-outline" title="Month-by-month ledger" subtitle="Tap a row for payment details" />
           <Row gap={spacing.sm} style={{ marginBottom: spacing.md }}>
             <Chip label="All" selected={filter === 'all'} onPress={() => setFilter('all')} />
-            <Chip label="Pending" icon="⏳" selected={filter === 'pending'} onPress={() => setFilter('pending')} />
-            <Chip label="Paid" icon="✓" selected={filter === 'paid'} onPress={() => setFilter('paid')} />
+            <Chip label="Pending" icon="hourglass-outline" selected={filter === 'pending'} onPress={() => setFilter('pending')} />
+            <Chip label="Paid" icon="checkmark" selected={filter === 'paid'} onPress={() => setFilter('paid')} />
           </Row>
 
           {visible.length ? (
@@ -190,7 +190,7 @@ export function FeesScreen() {
               })}
             </View>
           ) : (
-            <EmptyState icon="📭" title="Nothing in this filter" />
+            <EmptyState icon="file-tray-outline" title="Nothing in this filter" />
           )}
         </View>
       </Screen>

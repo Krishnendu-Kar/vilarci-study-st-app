@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../theme/ThemeProvider';
 import { spacing } from '../theme/tokens';
 import { useStudentContext, useSyllabus } from '../lib/api/hooks';
@@ -16,6 +17,7 @@ import {
   ProgressBar,
   Row,
   SectionHeader,
+  IconName,
 } from '../components/ui/base';
 import { Button } from '../components/ui/Button';
 import { Screen } from '../components/ui/Screen';
@@ -25,11 +27,11 @@ import { ACADEMIC_NAV, SubNav } from '../components/SubNav';
 import { formatDate } from '../lib/utils/format';
 import type { SyllabusStatus } from '../lib/data/types';
 
-const STATUS_META: Record<SyllabusStatus, { label: string; tone: PillTone; icon: string }> = {
-  covered: { label: 'Covered', tone: 'success', icon: '✓' },
-  partial: { label: 'In progress', tone: 'warning', icon: '◑' },
-  skipped: { label: 'Skipped', tone: 'error', icon: '✕' },
-  upcoming: { label: 'Upcoming', tone: 'neutral', icon: '○' },
+const STATUS_META: Record<SyllabusStatus, { label: string; tone: PillTone; icon: IconName }> = {
+  covered: { label: 'Covered', tone: 'success', icon: 'checkmark' },
+  partial: { label: 'In progress', tone: 'warning', icon: 'contrast-outline' },
+  skipped: { label: 'Skipped', tone: 'error', icon: 'close' },
+  upcoming: { label: 'Upcoming', tone: 'neutral', icon: 'ellipse-outline' },
 };
 
 type Filter = 'all' | SyllabusStatus | 'to_revise';
@@ -112,16 +114,19 @@ export function SyllabusScreen() {
             <Pill label={`${progress.upcoming} upcoming`} tone="neutral" />
           </Row>
           {toRevise > 0 ? (
-            <AppText variant="caption" tone="gold" style={{ marginTop: spacing.sm }}>
-              🎯 {toRevise} covered topic{toRevise === 1 ? '' : 's'} still waiting on your revision — 15 pts each.
-            </AppText>
+            <Row gap={6} align="flex-start" style={{ marginTop: spacing.sm }}>
+              <Ionicons name="locate-outline" size={14} color={colors.gold} style={{ marginTop: 2 }} />
+              <AppText variant="caption" tone="gold" style={{ flex: 1 }}>
+              {toRevise} covered topic{toRevise === 1 ? '' : 's'} still waiting on your revision — 15 pts each.
+              </AppText>
+            </Row>
           ) : null}
         </Card>
 
         {/* Filters */}
         <Row gap={spacing.sm} wrap style={{ marginTop: spacing.lg }}>
           <Chip label="All" selected={filter === 'all'} onPress={() => setFilter('all')} />
-          <Chip label="To revise" icon="🎯" selected={filter === 'to_revise'} onPress={() => setFilter('to_revise')} />
+          <Chip label="To revise" icon="locate-outline" selected={filter === 'to_revise'} onPress={() => setFilter('to_revise')} />
           {(['covered', 'partial', 'skipped', 'upcoming'] as SyllabusStatus[]).map((s) => (
             <Chip
               key={s}
@@ -166,7 +171,7 @@ export function SyllabusScreen() {
                       <Row gap={5} wrap style={{ marginTop: 7 }}>
                         <Pill label={meta.label} tone={meta.tone} icon={meta.icon} />
                         {center ? <Pill label={center.name} tone="primary" /> : null}
-                        {t.revised_by_student ? <Pill label="Revised by me" tone="accent" icon="🎯" /> : null}
+                        {t.revised_by_student ? <Pill label="Revised by me" tone="accent" icon="locate-outline" /> : null}
                       </Row>
                     </View>
                   </Row>
@@ -176,7 +181,7 @@ export function SyllabusScreen() {
                       <Divider style={{ marginVertical: spacing.md }} />
                       <Button
                         label="I revised this topic  (+15 pts)"
-                        icon="✓"
+                        iconName="checkmark"
                         size="sm"
                         variant="secondary"
                         fullWidth
@@ -189,7 +194,7 @@ export function SyllabusScreen() {
             })
           ) : (
             <EmptyState
-              icon="📚"
+              icon="library-outline"
               title="Nothing matches this filter"
               message="Try a different status or subject — or switch coaching centre in the header."
             />
@@ -198,7 +203,7 @@ export function SyllabusScreen() {
 
         {/* Chapter rollup */}
         <View style={{ marginTop: spacing.xl }}>
-          <SectionHeader icon="🗂️" title="Chapter rollup" subtitle="Progress grouped the way your teacher plans it" />
+          <SectionHeader icon="folder-open-outline" title="Chapter rollup" subtitle="Progress grouped the way your teacher plans it" />
           <Card>
             {groupByChapter(topics).map((g, idx) => (
               <View key={`${g.subject}-${g.chapter}`}>

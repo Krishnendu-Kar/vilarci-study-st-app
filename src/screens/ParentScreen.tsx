@@ -81,10 +81,12 @@ export function ParentScreen() {
                 backgroundColor: 'rgba(253,251,249,0.1)',
               }}
             >
-              <AppText variant="caption" style={{ color: '#FDFBF9' }}>
-                ⚠ {flagged.map((f) => f.student.name.split(' ')[0]).join(', ')} below the 75% attendance
-                threshold.
-              </AppText>
+              <Row gap={spacing.sm} align="flex-start">
+                <Ionicons name="warning-outline" size={15} color={colors.goldBright} />
+                <AppText variant="caption" style={{ color: '#FDFBF9', flex: 1 }}>
+                  {flagged.map((f) => f.student.name.split(' ')[0]).join(', ')} below the 75% attendance threshold.
+                </AppText>
+              </Row>
             </View>
           ) : (
             <View
@@ -95,9 +97,12 @@ export function ParentScreen() {
                 backgroundColor: 'rgba(253,251,249,0.1)',
               }}
             >
-              <AppText variant="caption" style={{ color: '#FDFBF9' }}>
-                ✓ Every child is above the 75% attendance threshold.
-              </AppText>
+              <Row gap={spacing.sm} align="flex-start">
+                <Ionicons name="checkmark-circle-outline" size={15} color={colors.goldBright} />
+                <AppText variant="caption" style={{ color: '#FDFBF9', flex: 1 }}>
+                  Every child is above the 75% attendance threshold.
+                </AppText>
+              </Row>
             </View>
           )}
         </HeroCard>
@@ -167,9 +172,12 @@ export function ParentScreen() {
                         <AppText variant="caption" tone="muted">
                           Honours · {r.points.toLocaleString('en-IN')} pts
                         </AppText>
-                        <AppText variant="caption" tone="muted">
-                          🔥 {r.streak}d streak
-                        </AppText>
+                        <Row gap={3}>
+                          <Ionicons name="flame" size={12} color={colors.gold} />
+                          <AppText variant="caption" tone="muted">
+                            {r.streak}d streak
+                          </AppText>
+                        </Row>
                       </Row>
                       <ProgressBar value={Math.min(100, (r.points / 2000) * 100)} gradient={colors.goldGradient} height={6} />
                     </View>

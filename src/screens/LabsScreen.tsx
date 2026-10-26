@@ -1,8 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StatusBar, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../theme/ThemeProvider';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { iconForEmoji } from '../lib/utils/icons';
+import { ALL_MODAL_ORIENTATIONS, useOrientation } from '../lib/utils/orientation';
 import { radius, spacing } from '../theme/tokens';
 import { useSimulations } from '../lib/api/hooks';
 import { useAppStore } from '../lib/store/useAppStore';
@@ -47,7 +50,7 @@ export function LabsScreen() {
                 justifyContent: 'center',
               }}
             >
-              <AppText style={{ fontSize: 24 }}>⚗️</AppText>
+              <Ionicons name="flask" size={24} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
               <AppText variant="title">Interactive STEM Labs</AppText>
@@ -83,7 +86,7 @@ export function LabsScreen() {
                       justifyContent: 'center',
                     }}
                   >
-                    <AppText style={{ fontSize: 26 }}>{sim.thumbnail_emoji}</AppText>
+                    <Ionicons name={iconForEmoji(sim.thumbnail_emoji)} size={26} color={tone.text} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <AppText variant="subheading">{sim.title}</AppText>
@@ -93,7 +96,8 @@ export function LabsScreen() {
                     <Row gap={5} wrap style={{ marginTop: 7 }}>
                       <Pill label={sim.subject} tone="primary" />
                       <Pill label={`Class ${sim.class}`} tone="neutral" />
-                      {seen ? <Pill label="Explored" tone="success" icon="✓" /> : null}
+                      <Pill label="Landscape" tone="neutral" icon="phone-landscape-outline" />
+                      {seen ? <Pill label="Explored" tone="success" icon="checkmark" /> : null}
                     </Row>
                   </View>
                 </Row>
@@ -103,7 +107,7 @@ export function LabsScreen() {
         </View>
 
         <View style={{ marginTop: spacing.xl }}>
-          <SectionHeader icon="🧪" title="STEM Explorer badge" />
+          <SectionHeader icon="flask-outline" title="STEM Explorer badge" />
           <Card muted>
             <Row justify="space-between">
               <AppText variant="captionStrong">{Math.min(openedCount, 5)} of 5 labs explored</AppText>
@@ -124,7 +128,7 @@ export function LabsScreen() {
   );
 }
 
-/** Full-screen modal WebView runner — keeps the student inside the app. */
+/** Wrapper so each simulation mounts fresh (resets loading state). */
 function SimulationRunner({
   simulation,
   onClose,
@@ -132,50 +136,94 @@ function SimulationRunner({
   simulation: Simulation | null;
   onClose: () => void;
 }) {
+  if (!simulation) return null;
+  return <RunnerModal key={simulation.id} simulation={simulation} onClose={onClose} />;
+}
+
+/**
+ * Full-screen landscape lab. PhET sims are designed for wide screens, so the
+ * device rotates on open and returns to portrait on close.
+ */
+function RunnerModal({ simulation, onClose }: { simulation: Simulation; onClose: () => void }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
+  const [landscape, setLandscape] = useState(true);
+  useOrientation(landscape ? 'landscape' : 'portrait');
 
-  if (!simulation) return null;
+  const iconButton = {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: colors.surfaceMuted,
+  };
 
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={{ flex: 1, backgroundColor: colors.bgApp, paddingTop: insets.top }}>
+    <Modal
+      visible
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      supportedOrientations={[...ALL_MODAL_ORIENTATIONS]}
+    >
+      <StatusBar hidden={landscape} />
+      <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
         <Row
           justify="space-between"
+          gap={spacing.md}
           style={{
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.sm,
+            paddingTop: landscape ? Math.max(insets.top, 6) : insets.top + spacing.sm,
+            paddingBottom: landscape ? 6 : spacing.sm,
+            paddingLeft: Math.max(insets.left, spacing.lg),
+            paddingRight: Math.max(insets.right, spacing.lg),
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
             backgroundColor: colors.surface,
           }}
         >
-          <View style={{ flex: 1 }}>
-            <AppText variant="subheading" numberOfLines={1}>
-              {simulation.thumbnail_emoji} {simulation.title}
-            </AppText>
-            <AppText variant="caption" tone="muted">
-              {simulation.subject} · PhET Interactive Simulations
-            </AppText>
-          </View>
+          <Row gap={spacing.sm} style={{ flex: 1 }}>
+            <Ionicons name={iconForEmoji(simulation.thumbnail_emoji)} size={18} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <AppText variant="subheading" numberOfLines={1}>
+                {simulation.title}
+              </AppText>
+              {landscape ? null : (
+                <AppText variant="caption" tone="muted">
+                  {simulation.subject} · PhET Interactive Simulations
+                </AppText>
+              )}
+            </View>
+          </Row>
+          <Pressable
+            onPress={() => setLandscape((v) => !v)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={landscape ? 'Rotate to portrait' : 'Rotate to landscape'}
+            style={({ pressed }) => [iconButton, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Ionicons name={landscape ? 'phone-portrait-outline' : 'phone-landscape-outline'} size={17} color={colors.textSecondary} />
+          </Pressable>
           <Pressable
             onPress={onClose}
-            hitSlop={10}
-            style={{
-              paddingHorizontal: spacing.md,
-              paddingVertical: 7,
-              borderRadius: radius.pill,
-              backgroundColor: colors.surfaceMuted,
-            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Close simulation"
+            style={({ pressed }) => [iconButton, { opacity: pressed ? 0.6 : 1 }]}
           >
-            <AppText variant="captionStrong" tone="primary">
-              Close
-            </AppText>
+            <Ionicons name="close" size={18} color={colors.textSecondary} />
           </Pressable>
         </Row>
 
-        <View style={{ flex: 1 }}>
+        <View
+          style={{
+            flex: 1,
+            paddingLeft: landscape ? insets.left : 0,
+            paddingRight: landscape ? insets.right : 0,
+            paddingBottom: insets.bottom,
+          }}
+        >
           <WebView
             source={{ uri: simulation.phet_url }}
             onLoadEnd={() => setLoading(false)}
@@ -199,8 +247,6 @@ function SimulationRunner({
             </View>
           ) : null}
         </View>
-
-        <View style={{ paddingBottom: insets.bottom }} />
       </View>
     </Modal>
   );

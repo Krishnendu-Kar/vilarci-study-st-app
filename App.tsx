@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -18,13 +18,18 @@ import 'react-native-url-polyfill/auto';
 
 import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import { ToastProvider } from './src/components/ui/Toast';
+import { AuthProvider } from './src/lib/AuthProvider';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { setOrientation } from './src/lib/utils/orientation';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
 });
 
 export default function App() {
+  // Portrait everywhere; simulations and fullscreen video opt into landscape.
+  useEffect(() => setOrientation('portrait'), []);
+
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -38,9 +43,11 @@ export default function App() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ToastProvider>
-            <AppShell ready={fontsLoaded} />
-          </ToastProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <AppShell ready={fontsLoaded} />
+            </ToastProvider>
+          </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

@@ -5,10 +5,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../theme/ThemeProvider';
 import { spacing } from '../theme/tokens';
 import { AppText, Row } from './ui/base';
+import { MenuButton } from './SideMenu';
 
 /**
  * Editorial page title for the utility screens (household, verify, settings,
- * help). Shows a back chevron whenever the screen was pushed onto a stack.
+ * help). Menu trigger top-left, plus a back chevron when the screen was pushed.
  */
 export function ScreenTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   const { colors } = useTheme();
@@ -17,33 +18,33 @@ export function ScreenTitle({ title, subtitle }: { title: string; subtitle?: str
 
   return (
     <View>
-      {canGoBack ? (
-        <Pressable
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          hitSlop={10}
-          style={({ pressed }) => [
-            {
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.surface,
-              borderWidth: StyleSheet.hairlineWidth,
-              borderColor: colors.border,
-              marginBottom: spacing.md,
-              opacity: pressed ? 0.6 : 1,
-            },
-          ]}
-        >
-          <Ionicons name="chevron-back" size={18} color={colors.textMain} />
-        </Pressable>
-      ) : null}
-      <Row>
-        <AppText variant="display">{title}</AppText>
+      <Row gap={spacing.sm} style={{ marginBottom: spacing.md }}>
+        <MenuButton />
+        {canGoBack ? (
+          <Pressable
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={10}
+            style={({ pressed }) => [
+              {
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: colors.surface,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: colors.border,
+                opacity: pressed ? 0.6 : 1,
+              },
+            ]}
+          >
+            <Ionicons name="chevron-back" size={18} color={colors.textMain} />
+          </Pressable>
+        ) : null}
       </Row>
+      <AppText variant="display">{title}</AppText>
       {subtitle ? (
         <AppText variant="caption" tone="muted" style={{ marginTop: 2 }}>
           {subtitle}

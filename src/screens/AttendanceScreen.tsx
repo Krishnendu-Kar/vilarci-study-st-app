@@ -46,7 +46,7 @@ export function AttendanceScreen() {
         <SubNav items={ACADEMIC_NAV} />
         <Screen>
           <EmptyState
-            icon="📋"
+            icon="clipboard-outline"
             title="No attendance records"
             message="Your teachers' QR check-ins and registers will appear here once classes begin."
           />
@@ -85,7 +85,7 @@ export function AttendanceScreen() {
 
         {/* Monthly trend */}
         <View style={{ marginTop: spacing.xl }}>
-          <SectionHeader icon="📈" title="Month by month" />
+          <SectionHeader icon="trending-up-outline" title="Month by month" />
           <Card>
             {stats.byMonth.map((m, idx) => (
               <View key={m.month}>
@@ -109,7 +109,7 @@ export function AttendanceScreen() {
         {/* Per-centre split */}
         {ctx.enrolledCenters.length > 1 && ctx.isAllCenters ? (
           <View style={{ marginTop: spacing.xl }}>
-            <SectionHeader icon="🏛️" title="By coaching centre" />
+            <SectionHeader icon="business-outline" title="By coaching centre" />
             <Row gap={spacing.sm} wrap>
               {ctx.enrolledCenters.map((c) => {
                 const centerStats = attendanceStats(records.filter((r) => r.center_id === c.id));
@@ -135,7 +135,7 @@ export function AttendanceScreen() {
         {/* Date-by-date register */}
         <View style={{ marginTop: spacing.xl }}>
           <SectionHeader
-            icon="🗂️"
+            icon="folder-open-outline"
             title="Date-by-date register"
             subtitle={activeMonth ? `${monthLabel(`${activeMonth}-01`)} · ${monthStats.rate.toFixed(0)}% attended` : undefined}
           />
@@ -154,7 +154,7 @@ export function AttendanceScreen() {
 
         {/* Recent sessions */}
         <View style={{ marginTop: spacing.xl }}>
-          <SectionHeader icon="🕑" title="Recent sessions" />
+          <SectionHeader icon="time-outline" title="Recent sessions" />
           <Card>
             {records.slice(0, 12).map((r, idx) => (
               <View key={r.id}>

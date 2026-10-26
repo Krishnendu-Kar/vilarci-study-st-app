@@ -11,6 +11,7 @@ import { AppText, Avatar, CenterMark, Divider, Pill, Row } from './ui/base';
 import { Button } from './ui/Button';
 import { Sheet } from './ui/Sheet';
 import { useToast } from './ui/Toast';
+import { MenuButton } from './SideMenu';
 
 /**
  * Slim app bar: who is studying, which faculty is in focus. Both are tappable
@@ -35,6 +36,7 @@ export function ContextHeader({ title }: { title?: string }) {
       }}
     >
       <Row justify="space-between" gap={spacing.md}>
+        <MenuButton />
         <Pressable
           onPress={() => setProfileOpen(true)}
           accessibilityRole="button"

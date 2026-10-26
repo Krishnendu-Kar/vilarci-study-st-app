@@ -78,7 +78,7 @@ export function PracticeScreen() {
         <ContextHeader />
         <SubNav items={LEARN_NAV} />
         <Screen>
-          <EmptyState icon="❓" title="No practice questions" message="Question banks are added per subject." />
+          <EmptyState icon="help-circle-outline" title="No practice questions" message="Question banks are added per subject." />
         </Screen>
       </View>
     );

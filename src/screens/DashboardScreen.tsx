@@ -157,7 +157,7 @@ export function DashboardScreen() {
             </Card>
           ) : (
             <EmptyState
-              icon="🗓️"
+              icon="calendar-outline"
               title="No classes scheduled"
               message="Join a faculty with its invite code to build your weekly timetable."
             />
@@ -286,7 +286,7 @@ export function DashboardScreen() {
             </Card>
           ) : (
             <EmptyState
-              icon="🫖"
+              icon="cafe-outline"
               title="No classes today"
               message="A good window for the Focus Room or a revision pass."
             />

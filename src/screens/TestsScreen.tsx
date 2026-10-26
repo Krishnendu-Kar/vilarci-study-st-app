@@ -34,7 +34,7 @@ export function TestsScreen() {
         <SubNav items={ACADEMIC_NAV} />
         <Screen>
           <EmptyState
-            icon="📝"
+            icon="create-outline"
             title="No assessments yet"
             message="Test scorecards published by your faculties will land here."
           />
@@ -67,14 +67,14 @@ export function TestsScreen() {
             value={`${average.toFixed(1)}%`}
             sub={`Grade ${gradeFor(average)} across all faculties`}
             tone={average >= 85 ? 'success' : average >= 70 ? 'primary' : 'warning'}
-            icon="🎯"
+            icon="locate-outline"
           />
           <StatTile
             label="Best score"
             value={`${((best.marks_obtained / best.total_marks) * 100).toFixed(0)}%`}
             sub={best.subject}
             tone="accent"
-            icon="🏆"
+            icon="trophy-outline"
           />
         </Row>
 
@@ -83,7 +83,7 @@ export function TestsScreen() {
         </View>
 
         <View style={{ marginTop: spacing.xl }}>
-          <SectionHeader icon="📊" title="Subject mastery" subtitle="Aggregated marks per subject" />
+          <SectionHeader icon="bar-chart-outline" title="Subject mastery" subtitle="Aggregated marks per subject" />
           <Card>
             <SubjectMasteryBars data={mastery} />
           </Card>
@@ -92,7 +92,7 @@ export function TestsScreen() {
         {weakTopics.length ? (
           <View style={{ marginTop: spacing.xl }}>
             <SectionHeader
-              icon="🔍"
+              icon="search-outline"
               title="Diagnostic weak topics"
               subtitle="Tagged by your teachers across recent assessments"
             />
@@ -112,7 +112,7 @@ export function TestsScreen() {
         ) : null}
 
         <View style={{ marginTop: spacing.xl }}>
-          <SectionHeader icon="🧾" title="Scorecards" subtitle="Most recent first" />
+          <SectionHeader icon="receipt-outline" title="Scorecards" subtitle="Most recent first" />
           <View style={{ gap: spacing.sm }}>
             {[...tests].reverse().map((t) => {
               const pct = (t.marks_obtained / t.total_marks) * 100;

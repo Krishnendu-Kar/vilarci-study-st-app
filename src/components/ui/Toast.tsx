@@ -4,7 +4,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, spacing } from '../../theme/tokens';
-import { AppText } from './base';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { AppText, IconName } from './base';
+
+const TONE_ICONS: Record<'success' | 'info' | 'warning' | 'error', IconName> = {
+  success: 'checkmark-circle',
+  info: 'information-circle',
+  warning: 'alert-circle',
+  error: 'close-circle',
+};
 
 type ToastTone = 'success' | 'info' | 'warning' | 'error';
 
@@ -21,15 +29,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   const [message, setMessage] = useState<string | null>(null);
   const [tone, setTone] = useState<ToastTone>('success');
+  const [icon, setIcon] = useState<IconName>('checkmark-circle');
   const opacity = useRef(new Animated.Value(0)).current;
   const translate = useRef(new Animated.Value(20)).current;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const show = useCallback(
-    (msg: string, t: ToastTone = 'success') => {
+    (msg: string, t: ToastTone = 'success', i?: IconName) => {
       if (timer.current) clearTimeout(timer.current);
       setMessage(msg);
       setTone(t);
+      setIcon(i ?? TONE_ICONS[t]);
       Haptics.notificationAsync(
         t === 'error'
           ? Haptics.NotificationFeedbackType.Error
@@ -63,7 +73,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<ToastContextValue>(
     () => ({
       toast: show,
-      points: (pts, msg) => show(pts > 0 ? `🏅 +${pts} pts · ${msg}` : msg, pts > 0 ? 'success' : 'info'),
+      points: (pts, msg) => pts > 0 ? show(`+${pts} pts · ${msg}`, 'success', 'medal') : show(msg, 'info'),
     }),
     [show],
   );
@@ -103,9 +113,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               elevation: 6,
             }}
           >
-            <AppText variant="bodyStrong" style={{ color: tones[tone].fg }}>
-              {message}
-            </AppText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Ionicons name={icon} size={18} color={tones[tone].fg} />
+              <AppText variant="bodyStrong" style={{ color: tones[tone].fg, flex: 1 }}>
+                {message}
+              </AppText>
+            </View>
           </View>
         </Animated.View>
       ) : null}

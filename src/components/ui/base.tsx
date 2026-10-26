@@ -16,6 +16,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { elevation, fonts, radius, spacing } from '../../theme/tokens';
 
+export type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
 // ─── Typography ───────────────────────────────────────────────────────────────
 
 type TextTone =
@@ -135,13 +137,11 @@ export function IconBubble({
   tint,
   bg,
   size = 40,
-  emoji,
 }: {
-  name?: React.ComponentProps<typeof Ionicons>['name'];
+  name?: IconName;
   tint?: string;
   bg?: string;
   size?: number;
-  emoji?: string;
 }) {
   const { colors } = useTheme();
   return (
@@ -155,11 +155,7 @@ export function IconBubble({
         justifyContent: 'center',
       }}
     >
-      {emoji ? (
-        <Text style={{ fontSize: size * 0.46 }}>{emoji}</Text>
-      ) : (
-        <Ionicons name={name ?? 'ellipse-outline'} size={size * 0.5} color={tint ?? colors.textSecondary} />
-      )}
+      <Ionicons name={name ?? 'ellipse-outline'} size={size * 0.5} color={tint ?? colors.textSecondary} />
     </View>
   );
 }
@@ -283,13 +279,13 @@ export function SectionHeader({
   subtitle?: string;
   action?: string;
   onAction?: () => void;
-  /** Emoji kept small inside a muted square — restrained, not decorative noise. */
-  icon?: string;
+  /** Kept small inside a tinted square — restrained, not decorative noise. */
+  icon?: IconName;
 }) {
   const { colors } = useTheme();
   return (
     <Row justify="space-between" align="center" style={{ marginBottom: spacing.md }} gap={spacing.sm}>
-      {icon ? <IconBubble emoji={icon} size={30} /> : null}
+      {icon ? <IconBubble name={icon} size={30} tint={colors.primary} bg={colors.primarySubtle} /> : null}
       <View style={{ flex: 1 }}>
         <AppText variant="heading">{title}</AppText>
         {subtitle ? (
@@ -323,7 +319,7 @@ export function Pill({
 }: {
   label: string;
   tone?: PillTone;
-  icon?: string;
+  icon?: IconName;
   style?: StyleProp<ViewStyle>;
   solid?: boolean;
 }) {
@@ -350,10 +346,14 @@ export function Pill({
           paddingVertical: 4,
           borderRadius: radius.xs,
           alignSelf: 'flex-start',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 3,
         },
         style,
       ]}
     >
+      {icon ? <Ionicons name={icon} size={11} color={solid ? colors.textOnPrimary : t.fg} /> : null}
       <Text
         style={{
           fontFamily: fonts.sansSemibold,
@@ -362,7 +362,6 @@ export function Pill({
           color: solid ? colors.textOnPrimary : t.fg,
         }}
       >
-        {icon ? `${icon} ` : ''}
         {label}
       </Text>
     </View>
@@ -378,9 +377,10 @@ export function Chip({
   label: string;
   selected?: boolean;
   onPress?: () => void;
-  icon?: string;
+  icon?: IconName;
 }) {
   const { colors } = useTheme();
+  const rowStyle = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 5 };
 
   if (selected) {
     return (
@@ -393,11 +393,12 @@ export function Chip({
             paddingHorizontal: spacing.lg,
             paddingVertical: 9,
             borderRadius: radius.pill,
+            ...rowStyle,
             ...elevation(1, colors.shadowColor, colors.shadowOpacity + 0.05),
           }}
         >
+          {icon ? <Ionicons name={icon} size={13} color="#fff" /> : null}
           <Text style={{ fontFamily: fonts.sansSemibold, fontSize: 12.5, color: '#fff' }}>
-            {icon ? `${icon} ` : ''}
             {label}
           </Text>
         </LinearGradient>
@@ -417,11 +418,12 @@ export function Chip({
           borderColor: colors.borderStrong,
           backgroundColor: colors.surface,
           opacity: pressed ? 0.7 : 1,
+          ...rowStyle,
         },
       ]}
     >
+      {icon ? <Ionicons name={icon} size={13} color={colors.textMuted} /> : null}
       <Text style={{ fontFamily: fonts.sansMedium, fontSize: 12.5, color: colors.textSecondary }}>
-        {icon ? `${icon} ` : ''}
         {label}
       </Text>
     </Pressable>
@@ -564,7 +566,7 @@ export function StatTile({
   value: string;
   sub?: string;
   tone?: PillTone;
-  icon?: string;
+  icon?: IconName;
   onPress?: () => void;
 }) {
   const { colors } = useTheme();
@@ -600,7 +602,7 @@ export function StatTile({
         <AppText variant="overline" tone="muted" style={{ flex: 1 }}>
           {label.toUpperCase()}
         </AppText>
-        {icon ? <Text style={{ fontSize: 14 }}>{icon}</Text> : null}
+        {icon ? <Ionicons name={icon} size={16} color={accents[tone]} /> : null}
       </Row>
       <AppText variant="metric" style={{ color: accents[tone], marginTop: spacing.sm }}>
         {value}
@@ -646,7 +648,6 @@ export function KeyValue({
 export function ListRow({
   title,
   subtitle,
-  emoji,
   iconName,
   onPress,
   right,
@@ -654,8 +655,7 @@ export function ListRow({
 }: {
   title: string;
   subtitle?: string;
-  emoji?: string;
-  iconName?: React.ComponentProps<typeof Ionicons>['name'];
+  iconName?: IconName;
   onPress?: () => void;
   right?: React.ReactNode;
   tint?: string;
@@ -674,9 +674,8 @@ export function ListRow({
         },
       ]}
     >
-      {emoji || iconName ? (
+      {iconName ? (
         <IconBubble
-          emoji={emoji}
           name={iconName}
           size={38}
           tint={tint ?? colors.primary}
@@ -699,11 +698,11 @@ export function ListRow({
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 export function EmptyState({
-  icon = '📭',
+  icon = 'file-tray-outline',
   title,
   message,
 }: {
-  icon?: string;
+  icon?: IconName;
   title: string;
   message?: string;
 }) {
@@ -731,7 +730,7 @@ export function EmptyState({
           marginBottom: spacing.md,
         }}
       >
-        <Text style={{ fontSize: 26 }}>{icon}</Text>
+        <Ionicons name={icon} size={26} color={colors.textMuted} />
       </View>
       <AppText variant="subheading" center>
         {title}
