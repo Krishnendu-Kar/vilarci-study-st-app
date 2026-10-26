@@ -24,8 +24,9 @@ import { Sheet } from '../components/ui/Sheet';
 import { useToast } from '../components/ui/Toast';
 import { Field } from '../components/ContextHeader';
 import { ScreenTitle } from '../components/ScreenTitle';
-import { accountName, useAuth } from '../lib/AuthProvider';
-import { signOut } from '../lib/auth';
+import * as WebBrowser from 'expo-web-browser';
+import { accountName, accountPhone, useAuth } from '../lib/AuthProvider';
+import { MANAGE_ACCOUNT_URL, signOut } from '../lib/auth';
 import { formatDate, rupees } from '../lib/utils/format';
 
 type ContactKey = 'father' | 'mother' | 'guardian';
@@ -68,7 +69,7 @@ export function SettingsScreen() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
-  const { session, profile, demo, exitDemo } = useAuth();
+  const { session, profile, accountType, demo, exitDemo } = useAuth();
 
   const submitJoin = () => {
     const result = joinCenterByCode(student.id, joinCode);
@@ -200,19 +201,23 @@ export function SettingsScreen() {
             {demo ? (
               <ListRow
                 title="You’re exploring the demo"
-                subtitle="Log in or create a family account to see your real data"
+                subtitle="Continue with Vilarci to see your family’s real data"
                 iconName="log-in-outline"
                 onPress={exitDemo}
               />
             ) : (
               <>
-                <KeyValue label="Signed in as" value={accountName(profile, session)} />
-                <KeyValue
-                  label="Account type"
-                  value={profile?.role === 'student' ? 'Student (18+)' : profile?.role === 'teacher' ? 'Teacher' : 'Parent / guardian'}
-                />
-                <KeyValue label="WhatsApp" value={profile?.phone ?? session?.user.phone ?? '—'} />
+                <KeyValue label="Vilarci account" value={accountName(profile, session)} />
+                <KeyValue label="Mobile" value={accountPhone(profile, session) ?? '—'} />
+                <KeyValue label="Using Study as" value={accountType === 'student' ? 'Student (18+)' : 'Parent / guardian'} />
                 <Divider style={{ marginVertical: spacing.sm }} />
+                <ListRow
+                  title="Manage Vilarci account"
+                  subtitle="Name, number and password are managed on vilarci.in"
+                  iconName="open-outline"
+                  onPress={() => WebBrowser.openBrowserAsync(MANAGE_ACCOUNT_URL).catch(() => {})}
+                />
+                <Divider />
                 {confirmLogout ? (
                   <View>
                     <AppText variant="subheading">Log out of Vilarci Study?</AppText>
@@ -230,7 +235,7 @@ export function SettingsScreen() {
                 ) : (
                   <ListRow
                     title="Log out"
-                    subtitle="You can log back in with your mobile number"
+                    subtitle="Signs out of Vilarci Study on this phone only"
                     iconName="log-out-outline"
                     tint={colors.error}
                     onPress={() => setConfirmLogout(true)}

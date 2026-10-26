@@ -26,9 +26,8 @@ import { ParentScreen } from '../screens/ParentScreen';
 import { VerifyScreen } from '../screens/VerifyScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { HelpScreen } from '../screens/HelpScreen';
-import { LoginScreen } from '../screens/auth/LoginScreen';
-import { SignupScreen } from '../screens/auth/SignupScreen';
-import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
+import { WelcomeScreen } from '../screens/auth/WelcomeScreen';
+import { OnboardingScreen } from '../screens/auth/OnboardingScreen';
 import { useAuth } from '../lib/AuthProvider';
 import { ActivityIndicator, View } from 'react-native';
 
@@ -38,17 +37,6 @@ const Tabs = createBottomTabNavigator();
 const AcademicsStack = createNativeStackNavigator();
 const LearnStack = createNativeStackNavigator();
 const MoreStack = createNativeStackNavigator();
-const AuthStack = createNativeStackNavigator();
-
-function AuthNavigator() {
-  return (
-    <AuthStack.Navigator screenOptions={pushOptions}>
-      <AuthStack.Screen name="Login" component={LoginScreen} />
-      <AuthStack.Screen name="Signup" component={SignupScreen} />
-      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-    </AuthStack.Navigator>
-  );
-}
 
 /** Sections switched by the in-screen chip bar: cross-fade, no back gesture. */
 const sectionOptions: NativeStackNavigationOptions = {
@@ -126,7 +114,7 @@ function navTheme(isDark: boolean, colors: ReturnType<typeof useTheme>['colors']
 
 export function RootNavigator() {
   const { colors, isDark } = useTheme();
-  const { session, loading, recovering, demo } = useAuth();
+  const { session, loading, needsOnboarding, demo } = useAuth();
 
   if (loading) {
     return (
@@ -136,14 +124,9 @@ export function RootNavigator() {
     );
   }
 
-  // Signed-out (or mid password reset) users only see the auth screens.
-  if ((!session && !demo) || recovering) {
-    return (
-      <NavigationContainer theme={navTheme(isDark, colors)}>
-        <AuthNavigator />
-      </NavigationContainer>
-    );
-  }
+  // Signed out → "Continue with Vilarci"; first visit → choose parent / student.
+  if (!session && !demo) return <WelcomeScreen />;
+  if (needsOnboarding) return <OnboardingScreen />;
 
   return (
     <SideMenuProvider>

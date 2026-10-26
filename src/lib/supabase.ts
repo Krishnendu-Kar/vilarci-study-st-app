@@ -20,5 +20,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
+    // "Continue with Vilarci" returns an auth code that we exchange in-app.
+    flowType: 'pkce',
   },
 });
