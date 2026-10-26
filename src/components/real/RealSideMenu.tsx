@@ -26,7 +26,7 @@ interface MenuItem {
   label: string;
   icon: IconName;
   /** Real screen to open; absent = not built yet → "Coming soon". */
-  route?: 'RealHome' | 'Account';
+  route?: 'RealHome' | 'Account' | 'JoinBatch';
 }
 
 /**
@@ -39,6 +39,7 @@ const SECTIONS: { title: string; items: MenuItem[] }[] = [
     items: [
       { label: 'Home', icon: 'home-outline', route: 'RealHome' },
       { label: 'Student profiles', icon: 'people-outline', route: 'RealHome' },
+      { label: 'Join a batch', icon: 'enter-outline', route: 'JoinBatch' },
       { label: 'Honours', icon: 'trophy-outline' },
     ],
   },

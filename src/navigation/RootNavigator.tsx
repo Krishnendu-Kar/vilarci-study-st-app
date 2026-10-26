@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import * as Linking from 'expo-linking';
 import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DarkTheme, DefaultTheme, NavigationContainer, Theme } from '@react-navigation/native';
@@ -35,6 +36,8 @@ import { RealHomeScreen } from '../screens/real/RealHomeScreen';
 import { StudentFormScreen } from '../screens/real/StudentFormScreen';
 import { AccountScreen } from '../screens/real/AccountScreen';
 import { ComingSoonScreen } from '../screens/real/ComingSoonScreen';
+import { JoinBatchScreen } from '../screens/real/JoinBatchScreen';
+import { joinCodeFromUrl } from '../lib/api/batches';
 import { RealSideMenuProvider } from '../components/real/RealSideMenu';
 import { realNavigationRef } from './realNavigationRef';
 
@@ -135,6 +138,23 @@ export function RootNavigator() {
   const { colors, isDark } = useTheme();
   const { session, loading, recovering, demo } = useAuth();
 
+  // A join link (https://vilarci.in/join/…, vilarcistudy://join/…, or Expo Go's
+  // exp://…/--/join/…) is remembered until the real app is open, so it also
+  // works when the person still has to log in first.
+  const url = Linking.useURL();
+  const [pendingJoin, setPendingJoin] = useState<string | null>(null);
+  useEffect(() => {
+    const code = joinCodeFromUrl(url);
+    if (code) setPendingJoin(code);
+  }, [url]);
+
+  const openPendingJoin = () => {
+    if (!pendingJoin || !realNavigationRef.isReady()) return;
+    realNavigationRef.navigate('JoinBatch', { code: pendingJoin });
+    setPendingJoin(null);
+  };
+  useEffect(openPendingJoin, [pendingJoin, session, demo]);
+
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgApp }}>
@@ -157,12 +177,13 @@ export function RootNavigator() {
   if (session && !demo) {
     return (
       <RealSideMenuProvider>
-        <NavigationContainer ref={realNavigationRef} theme={navTheme(isDark, colors)}>
+        <NavigationContainer ref={realNavigationRef} theme={navTheme(isDark, colors)} onReady={openPendingJoin}>
           <RealStack.Navigator screenOptions={pushOptions}>
             <RealStack.Screen name="RealHome" component={RealHomeScreen} />
             <RealStack.Screen name="StudentForm" component={StudentFormScreen} />
             <RealStack.Screen name="Account" component={AccountScreen} />
             <RealStack.Screen name="ComingSoon" component={ComingSoonScreen} />
+            <RealStack.Screen name="JoinBatch" component={JoinBatchScreen} />
           </RealStack.Navigator>
         </NavigationContainer>
       </RealSideMenuProvider>

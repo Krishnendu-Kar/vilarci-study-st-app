@@ -20,6 +20,8 @@ import { AppText, Avatar, Card, EmptyState, HeroCard, IconName, Pill, Row, Secti
 import { Button } from '../../components/ui/Button';
 import { Screen } from '../../components/ui/Screen';
 import { RealMenuButton } from '../../components/real/RealSideMenu';
+import { Membership, STATUS_LABEL, useMyMemberships } from '../../lib/api/batches';
+import { rupees } from '../../lib/utils/format';
 
 /** Stable gradient per profile so a child keeps the same colour everywhere. */
 export const PROFILE_GRADIENTS: [string, string][] = [
@@ -51,6 +53,7 @@ export function RealHomeScreen() {
   const navigation = useNavigation<any>();
   const { session, profile, enterDemo } = useAuth();
   const profiles = useStudentProfiles();
+  const memberships = useMyMemberships();
 
   const list = profiles.data ?? [];
   const name = accountName(profile, session);
@@ -109,7 +112,13 @@ export function RealHomeScreen() {
         </Pressable>
       </Row>
 
-      <Screen refreshing={profiles.isRefetching} onRefresh={() => profiles.refetch()}>
+      <Screen
+        refreshing={profiles.isRefetching || memberships.isRefetching}
+        onRefresh={() => {
+          profiles.refetch();
+          memberships.refetch();
+        }}
+      >
         <HeroCard>
           <AppText variant="overline" style={{ color: colors.goldBright }}>
             WELCOME
@@ -187,6 +196,42 @@ export function RealHomeScreen() {
           )}
         </View>
 
+        {/* ── Private batches joined ────────────────────────────────────── */}
+        <View style={{ marginTop: spacing.xxl }}>
+          <SectionHeader
+            title="My batches"
+            subtitle="Private batches your students joined"
+            action={memberships.data?.length ? 'Join' : undefined}
+            onAction={() => navigation.navigate('JoinBatch')}
+          />
+          {memberships.isLoading ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : memberships.data?.length ? (
+            <View style={{ gap: spacing.md }}>
+              {memberships.data.map((m) => (
+                <MembershipCard key={m.id} m={m} />
+              ))}
+            </View>
+          ) : (
+            <Card>
+              <Row gap={spacing.md} align="flex-start">
+                <Ionicons name="key-outline" size={20} color={colors.primary} style={{ marginTop: 2 }} />
+                <AppText variant="caption" tone="secondary" style={{ flex: 1 }}>
+                  Got a join link or code from a teacher — tuition, music, art, yoga or anything else? Open the link, or
+                  enter the code here.
+                </AppText>
+              </Row>
+              <Button
+                label="Join a batch"
+                iconName="enter-outline"
+                fullWidth
+                onPress={() => navigation.navigate('JoinBatch')}
+                style={{ marginTop: spacing.md }}
+              />
+            </Card>
+          )}
+        </View>
+
         {/* ── Build progress ────────────────────────────────────────────── */}
         <View style={{ marginTop: spacing.xxl }}>
           <SectionHeader title="Coming next" subtitle="Already designed — try them in the demo" />
@@ -213,6 +258,32 @@ export function RealHomeScreen() {
         </View>
       </Screen>
     </View>
+  );
+}
+
+function MembershipCard({ m }: { m: Membership }) {
+  const { colors } = useTheme();
+  const tone = m.status === 'approved' ? 'success' : m.status === 'pending' ? 'gold' : 'error';
+  return (
+    <Card>
+      <Row justify="space-between" align="flex-start" gap={spacing.md}>
+        <View style={{ flex: 1 }}>
+          <AppText variant="subheading" numberOfLines={1}>
+            {m.batch_name}
+          </AppText>
+          <AppText variant="caption" tone="muted" numberOfLines={1}>
+            {[m.subject, m.grade, m.board].filter(Boolean).join(' · ')} · {m.teacher_name}
+          </AppText>
+        </View>
+        <Pill label={STATUS_LABEL[m.status]} tone={tone} />
+      </Row>
+      <Row gap={6} style={{ marginTop: spacing.sm }}>
+        <Ionicons name="person-outline" size={13} color={colors.textMuted} />
+        <AppText variant="caption" tone="secondary" style={{ flex: 1 }} numberOfLines={1}>
+          {m.student_name} · {rupees(m.monthly_fee)}/month
+        </AppText>
+      </Row>
+    </Card>
   );
 }
 
