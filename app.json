@@ -31,7 +31,7 @@
           "initialOrientation": "PORTRAIT_UP"
         }
       ],
-      "expo-web-browser"
+      "@react-native-community/datetimepicker"
     ]
   }
 }

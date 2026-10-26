@@ -2,41 +2,43 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
-/** The person, mirrored from their Vilarci account. */
 export interface AccountProfile {
   id: string;
-  full_name: string;
+  role: 'parent' | 'student' | 'teacher';
+  first_name: string;
+  middle_name: string;
+  last_name: string;
+  gender: 'male' | 'female' | 'other' | null;
+  dob: string | null;
   phone: string | null;
   email: string | null;
-  avatar_url: string | null;
 }
-
-export type StudyAccountType = 'parent' | 'student';
 
 interface AuthValue {
   session: Session | null;
   profile: AccountProfile | null;
-  /** Parent or student in this app; null until onboarding is done. */
-  accountType: StudyAccountType | null;
-  /** True until the stored session (and its account rows) have been read. */
+  /** True until the stored session has been read on launch. */
   loading: boolean;
-  /** Signed in with Vilarci but hasn't chosen parent / student yet. */
-  needsOnboarding: boolean;
+  /**
+   * Set while the forgot-password flow holds a verified OTP session, so the
+   * navigator keeps the auth screens up until the new password is saved.
+   */
+  recovering: boolean;
+  setRecovering: (value: boolean) => void;
   /** Browsing the sample data without an account (not persisted). */
   demo: boolean;
   enterDemo: () => void;
   exitDemo: () => void;
-  refreshAccount: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
-  const [accountType, setAccountType] = useState<StudyAccountType | null>(null);
-  const [accountLoaded, setAccountLoaded] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [recovering, setRecovering] = useState(false);
   const [demo, setDemo] = useState(false);
   const enterDemo = useCallback(() => setDemo(true), []);
   const exitDemo = useCallback(() => setDemo(false), []);
@@ -47,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setSession(data.session);
-      setSessionLoaded(true);
+      setLoading(false);
     });
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       if (!mounted) return;
@@ -62,33 +64,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const userId = session?.user.id;
 
-  const refreshAccount = useCallback(async () => {
+  const refreshProfile = useCallback(async () => {
     if (!userId) {
       setProfile(null);
-      setAccountType(null);
-      setAccountLoaded(true);
       return;
     }
-    const [profileRes, accountRes] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, phone, email, avatar_url').eq('id', userId).maybeSingle(),
-      supabase.from('study_accounts').select('account_type').eq('id', userId).maybeSingle(),
-    ]);
-    setProfile((profileRes.data as AccountProfile | null) ?? null);
-    setAccountType((accountRes.data?.account_type as StudyAccountType | undefined) ?? null);
-    setAccountLoaded(true);
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+    // A missing table or row is not fatal — the app falls back to the auth user.
+    setProfile(error ? null : (data as AccountProfile | null));
   }, [userId]);
 
   useEffect(() => {
-    setAccountLoaded(false);
-    refreshAccount();
-  }, [refreshAccount]);
-
-  const loading = !sessionLoaded || (Boolean(session) && !accountLoaded);
-  const needsOnboarding = Boolean(session) && accountLoaded && accountType === null;
+    refreshProfile();
+  }, [refreshProfile]);
 
   const value = useMemo<AuthValue>(
-    () => ({ session, profile, accountType, loading, needsOnboarding, demo, enterDemo, exitDemo, refreshAccount }),
-    [session, profile, accountType, loading, needsOnboarding, demo, enterDemo, exitDemo, refreshAccount],
+    () => ({ session, profile, loading, recovering, setRecovering, demo, enterDemo, exitDemo, refreshProfile }),
+    [session, profile, loading, recovering, demo, enterDemo, exitDemo, refreshProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -100,14 +92,9 @@ export function useAuth(): AuthValue {
   return ctx;
 }
 
-/** Display name for the signed-in person. */
+/** Display name for the signed-in account holder. */
 export function accountName(profile: AccountProfile | null, session: Session | null): string {
-  if (profile?.full_name) return profile.full_name;
+  if (profile) return [profile.first_name, profile.last_name].filter(Boolean).join(' ');
   const meta = session?.user.user_metadata ?? {};
-  return meta.name || meta.full_name || 'Vilarci member';
-}
-
-/** Best phone number we know for the person. */
-export function accountPhone(profile: AccountProfile | null, session: Session | null): string | null {
-  return profile?.phone || session?.user.phone || session?.user.user_metadata?.phone_number || null;
+  return [meta.first_name, meta.last_name].filter(Boolean).join(' ') || 'Vilarci member';
 }
