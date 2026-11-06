@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, type TextInputInstance, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -68,8 +68,8 @@ export function StudentFormScreen() {
   const [failure, setFailure] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const middleRef = useRef<TextInput>(null);
-  const lastRef = useRef<TextInput>(null);
+  const middleRef = useRef<TextInputInstance>(null);
+  const lastRef = useRef<TextInputInstance>(null);
 
   const title = editingId ? 'Edit student profile' : 'Add student profile';
   const today = useMemo(() => new Date(), []);
