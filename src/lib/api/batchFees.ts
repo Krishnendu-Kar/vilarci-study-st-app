@@ -1,58 +1,43 @@
-// Read-only fee ledger for the account's student profiles (public.batch_fees).
-// Teachers record payments; a month without a row is due or upcoming.
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../supabase';
+// A student's fee ledger in one batch, worked out on the phone from the
+// course months, the student's monthly fee and the months the teacher marked
+// paid or waived (enrolment_months.fee). A month without a mark is due once
+// it has started, else upcoming. Money in paise.
+import { useLocalStore } from '../local/store';
+import type { EnrolmentMonth, MonthFee } from '../local/types';
 import { currentMonth, monthsBetween } from '../utils/months';
 
-export type FeeStatus = 'paid' | 'waived';
 export type LedgerState = 'paid' | 'waived' | 'due' | 'upcoming';
-
-export interface FeeRow {
-  id: string;
-  membership_id: string;
-  month: string;
-  status: FeeStatus;
-  amount: number;
-  paid_on: string | null;
-  mode: 'cash' | 'upi' | 'bank' | 'other' | null;
-  note: string;
-}
 
 export const MODE_LABEL: Record<string, string> = { cash: 'Cash', upi: 'UPI', bank: 'Bank', other: 'Other' };
 
 export interface LedgerMonth {
   month: string;
   state: LedgerState;
-  row: FeeRow | null;
+  fee: MonthFee | null;
 }
 
-export function buildLedger(start: string, end: string, rows: FeeRow[], monthlyFee: number) {
+export function buildLedger(
+  start: string,
+  end: string,
+  months: Record<string, EnrolmentMonth> | undefined,
+  monthlyFee: number,
+) {
   const now = currentMonth();
-  const byMonth = new Map(rows.map((r) => [r.month, r]));
-  const months: LedgerMonth[] = monthsBetween(start, end).map((m) => {
-    const row = byMonth.get(m) ?? null;
-    return { month: m, state: row ? row.status : m <= now ? 'due' : 'upcoming', row };
+  const list: LedgerMonth[] = monthsBetween(start, end).map((m) => {
+    const fee = months?.[m]?.fee ?? null;
+    return { month: m, state: fee ? fee.status : m <= now ? 'due' : 'upcoming', fee };
   });
-  const dueMonths = months.filter((m) => m.state === 'due').length;
+  const dueMonths = list.filter((m) => m.state === 'due').length;
   return {
-    months,
-    totalCourse: months.length * monthlyFee,
-    paid: months.reduce((s, m) => s + (m.state === 'paid' ? m.row!.amount : 0), 0),
+    months: list,
+    totalCourse: list.length * monthlyFee,
+    paid: list.reduce((s, m) => s + (m.fee?.status === 'paid' ? m.fee.amount : 0), 0),
     dueMonths,
     dueAmount: dueMonths * monthlyFee,
   };
 }
 
-/** Ledger rows for several memberships at once (one student's batches). */
-export function useFeesForMemberships(membershipIds: string[]) {
-  const ids = [...membershipIds].sort();
-  return useQuery({
-    queryKey: ['member-fees', ids.join(',')],
-    enabled: ids.length > 0,
-    queryFn: async (): Promise<FeeRow[]> => {
-      const { data, error } = await supabase.from('batch_fees').select('*').in('membership_id', ids).order('month');
-      if (error) throw error;
-      return (data ?? []) as FeeRow[];
-    },
-  });
+/** Every synced month row of the account's students: enrolment id → month → row. */
+export function useEnrolmentMonths(): Record<string, Record<string, EnrolmentMonth>> {
+  return useLocalStore((s) => s.months);
 }

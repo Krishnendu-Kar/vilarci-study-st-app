@@ -8,15 +8,16 @@ import { spacing } from '../../theme/tokens';
 import { AppText, Row } from '../ui/base';
 import { RealMenuButton } from './RealSideMenu';
 
-/** ☰, back (when possible), title and a small subtitle — for real-app screens. */
+/** ☰, back (when possible, never on a bottom tab), title and a small subtitle — for real-app screens. */
 export function RealTopBar({ title, subtitle }: { title: string; subtitle?: string }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const showBack = navigation.getState()?.type !== 'tab' && navigation.canGoBack();
   return (
     <Row gap={spacing.sm} style={{ paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
       <RealMenuButton />
-      {navigation.canGoBack() ? (
+      {showBack ? (
         <Pressable
           onPress={() => navigation.goBack()}
           hitSlop={10}

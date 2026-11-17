@@ -32,7 +32,7 @@ export function useActiveStudent(): {
 } {
   const { session } = useAuth();
   const accountId = session?.user.id ?? '';
-  const { data: profiles = [], isLoading } = useStudentProfiles();
+  const { profiles, isLoading } = useStudentProfiles();
   const storedId = useActiveStudentStore((s) => s.byAccount[accountId]);
   const setActiveFor = useActiveStudentStore((s) => s.setActive);
 

@@ -20,6 +20,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import { ToastProvider } from './src/components/ui/Toast';
 import { AuthProvider } from './src/lib/AuthProvider';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { NetBannerLayout } from './src/components/NetBanner';
 import { setOrientation } from './src/lib/utils/orientation';
 
 const queryClient = new QueryClient({
@@ -65,7 +66,12 @@ function AppShell({ ready }: { ready: boolean }) {
         </View>
       );
     }
-    return <RootNavigator />;
+    // "No internet" / "Slow internet" at the very bottom, under the tab bar.
+    return (
+      <NetBannerLayout>
+        <RootNavigator />
+      </NetBannerLayout>
+    );
   }, [ready, colors]);
 
   return (

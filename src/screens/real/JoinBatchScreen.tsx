@@ -11,17 +11,18 @@ import {
   normalizeJoinCode,
   STATUS_LABEL,
   useBatchPreview,
-  useMyMemberships,
   useRequestJoin,
 } from '../../lib/api/batches';
 import { fullName, initialsOf, useStudentProfiles } from '../../lib/api/studentProfiles';
-import { rupees } from '../../lib/utils/format';
+import { money } from '../../lib/utils/format';
 import { AppText, Avatar, Card, Divider, EmptyState, HeroCard, KeyValue, Pill, Row } from '../../components/ui/base';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { AuthField, ErrorBanner } from '../../components/auth/AuthKit';
 import { gradientFor } from '../../lib/utils/profileColors';
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
+import { navigateToTab } from '../../navigation/realNavigationRef';
+import { JoinQrScanner } from '../../components/real/JoinQrScanner';
 
 const DAYS: [keyof import('../../lib/api/batches').WeekSchedule, string][] = [
   ['mon', 'Mon'],
@@ -49,15 +50,16 @@ export function JoinBatchScreen() {
   const [studentId, setStudentId] = useState<string | null>(params.studentId ?? active?.id ?? null);
   const [failure, setFailure] = useState<string | null>(null);
   const [sentFor, setSentFor] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   const preview = useBatchPreview(code);
-  const profiles = useStudentProfiles();
-  const memberships = useMyMemberships();
+  const { profiles, isLoading: profilesLoading } = useStudentProfiles();
   const request = useRequestJoin();
 
   const batch = preview.data;
+  // Students already in, or waiting for, this batch can't ask again.
   const statusFor = (id: string) =>
-    memberships.data?.find((m) => m.batch_id === batch?.batch_id && m.student_id === id && m.status !== 'declined')?.status;
+    batch?.mine.find((m) => m.student_id === id && (m.status === 'approved' || m.status === 'pending'))?.status;
 
   const lookUp = () => {
     const c = normalizeJoinCode(typed);
@@ -69,12 +71,19 @@ export function JoinBatchScreen() {
     setCode(c);
   };
 
+  const onScanned = (c: string) => {
+    setScanning(false);
+    setTyped(c);
+    setFailure(null);
+    setCode(c);
+  };
+
   const send = async () => {
     if (!code || !studentId) return;
     setFailure(null);
     try {
       await request.mutateAsync({ code, studentId });
-      const p = profiles.data?.find((x) => x.id === studentId);
+      const p = profiles.find((x) => x.id === studentId);
       setSentFor(p ? p.first_name : 'your student');
       toast.toast('Request sent to the teacher', 'success');
     } catch (err) {
@@ -90,7 +99,7 @@ export function JoinBatchScreen() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bgApp }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Row gap={spacing.md} style={{ paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
         <Pressable
-          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('RealHome'))}
+          onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigateToTab(navigation, 'RealHome'))}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Go back"
@@ -109,10 +118,18 @@ export function JoinBatchScreen() {
         {/* Code entry (prefilled from a join link) */}
         {!batch ? (
           <Card>
-            <AppText variant="subheading">Enter the join code</AppText>
+            <AppText variant="subheading">Scan or enter the join code</AppText>
             <AppText variant="caption" tone="muted" style={{ marginTop: 2, marginBottom: spacing.lg }}>
-              Your teacher shares it as a link or a code like VLR-CZ78HG.
+              Your teacher shares it as a QR, a link or a code like VLR-CZ78HG.
             </AppText>
+            <Button label="Scan QR code" iconName="qr-code-outline" size="lg" fullWidth onPress={() => setScanning(true)} />
+            <Row gap={spacing.sm} style={{ marginVertical: spacing.lg }}>
+              <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+              <AppText variant="caption" tone="muted">
+                or type the code
+              </AppText>
+              <View style={{ flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+            </Row>
             <AuthField
               label="Join code"
               icon="key-outline"
@@ -130,7 +147,7 @@ export function JoinBatchScreen() {
             {preview.isFetching ? (
               <ActivityIndicator color={colors.primary} />
             ) : (
-              <Button label="Find batch" iconName="search-outline" fullWidth onPress={lookUp} />
+              <Button label="Find batch" iconName="search-outline" variant="secondary" fullWidth onPress={lookUp} />
             )}
             {code && !preview.isFetching && preview.isFetched && !batch ? (
               <AppText variant="caption" tone="error" style={{ marginTop: spacing.md }}>
@@ -154,18 +171,18 @@ export function JoinBatchScreen() {
               <Row gap={spacing.sm} style={{ marginTop: spacing.lg }}>
                 <Ionicons name="person-circle-outline" size={18} color={colors.goldBright} />
                 <AppText variant="bodyStrong" style={{ color: '#FDFBF9', flex: 1 }}>
-                  {batch.teacher_name}
+                  {batch.teacher.name}
                 </AppText>
               </Row>
-              {batch.teacher_qualification ? (
+              {batch.teacher.qualification ? (
                 <AppText variant="caption" style={{ color: 'rgba(253,251,249,0.7)', marginLeft: 26 }}>
-                  {batch.teacher_qualification}
+                  {batch.teacher.qualification}
                 </AppText>
               ) : null}
             </HeroCard>
 
             <Card style={{ marginTop: spacing.lg }}>
-              <KeyValue label="Monthly fee" value={`${rupees(batch.monthly_fee)} / month`} />
+              <KeyValue label="Monthly fee" value={`${money(batch.monthly_fee)} / month`} />
               <KeyValue label="Seats" value={full ? 'Full' : `${batch.capacity - batch.seats_taken} of ${batch.capacity} left`} />
               {batch.room ? <KeyValue label="Venue" value={batch.room} /> : null}
               <Divider style={{ marginVertical: spacing.sm }} />
@@ -189,9 +206,9 @@ export function JoinBatchScreen() {
             <AppText variant="overline" tone="muted" style={{ marginTop: spacing.xxl, marginBottom: spacing.sm }}>
               WHO IS JOINING?
             </AppText>
-            {profiles.isLoading ? (
+            {profilesLoading ? (
               <ActivityIndicator color={colors.primary} />
-            ) : !profiles.data?.length ? (
+            ) : !profiles.length ? (
               <View>
                 <EmptyState icon="people-outline" title="Add a student profile first" message="Joining is done for a student profile — yourself or someone you manage." />
                 <Button
@@ -204,7 +221,7 @@ export function JoinBatchScreen() {
               </View>
             ) : (
               <View style={{ gap: spacing.sm }}>
-                {profiles.data.map((p, i) => {
+                {profiles.map((p, i) => {
                   const status = statusFor(p.id);
                   const selected = studentId === p.id;
                   return (
@@ -252,11 +269,11 @@ export function JoinBatchScreen() {
                   </AppText>
                 </Row>
                 <AppText variant="caption" tone="muted" style={{ marginTop: 4 }}>
-                  {batch.teacher_name} will review it. You'll see the status on your home screen.
+                  {batch.teacher.name} will review it. You'll see the status in Batches.
                 </AppText>
-                <Button label="Back to home" variant="secondary" size="sm" onPress={() => navigation.navigate('RealHome')} style={{ marginTop: spacing.md }} />
+                <Button label="See batches" variant="secondary" size="sm" onPress={() => navigateToTab(navigation, 'Batches')} style={{ marginTop: spacing.md }} />
               </Card>
-            ) : profiles.data?.length ? (
+            ) : profiles.length ? (
               <Button
                 label={full ? 'Batch is full' : 'Request to join'}
                 iconName="paper-plane-outline"
@@ -274,6 +291,7 @@ export function JoinBatchScreen() {
           </>
         )}
       </ScrollView>
+      <JoinQrScanner visible={scanning} onClose={() => setScanning(false)} onCode={onScanned} />
     </KeyboardAvoidingView>
   );
 }

@@ -60,3 +60,6 @@ service-account*.json
 .idea/
 .claude/settings.local.json
 *.log
+
+# local planning docs
+new-db-plan.md

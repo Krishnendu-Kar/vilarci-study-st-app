@@ -36,9 +36,12 @@ import { RealHomeScreen } from '../screens/real/RealHomeScreen';
 import { StudentFormScreen } from '../screens/real/StudentFormScreen';
 import { AccountScreen } from '../screens/real/AccountScreen';
 import { ComingSoonScreen } from '../screens/real/ComingSoonScreen';
+import { ComingSoonListScreen } from '../screens/real/ComingSoonListScreen';
 import { JoinBatchScreen } from '../screens/real/JoinBatchScreen';
 import { StudentTimetableScreen } from '../screens/real/StudentTimetableScreen';
 import { StudentFeesScreen } from '../screens/real/StudentFeesScreen';
+import { BatchesScreen } from '../screens/real/BatchesScreen';
+import { HonoursScreen } from '../screens/real/HonoursScreen';
 import { joinCodeFromUrl } from '../lib/api/batches';
 import { RealSideMenuProvider } from '../components/real/RealSideMenu';
 import { realNavigationRef } from './realNavigationRef';
@@ -51,6 +54,7 @@ const LearnStack = createNativeStackNavigator();
 const MoreStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 const RealStack = createNativeStackNavigator();
+const RealTabs = createBottomTabNavigator();
 
 function AuthNavigator() {
   return (
@@ -109,6 +113,42 @@ function MoreNavigator() {
       <MoreStack.Screen name="Settings" component={SettingsScreen} />
       <MoreStack.Screen name="Help" component={HelpScreen} />
     </MoreStack.Navigator>
+  );
+}
+
+const REAL_TABS: { name: string; label: string; icons: [IconName, IconName]; component: React.ComponentType }[] = [
+  { name: 'RealHome', label: 'Home', icons: ['home', 'home-outline'], component: RealHomeScreen },
+  { name: 'Batches', label: 'Batches', icons: ['people', 'people-outline'], component: BatchesScreen },
+  { name: 'StudentTimetable', label: 'Timetable', icons: ['calendar', 'calendar-outline'], component: StudentTimetableScreen },
+  { name: 'Honours', label: 'Honours', icons: ['trophy', 'trophy-outline'], component: HonoursScreen },
+];
+
+/** Bottom tabs of the real app; every tab is live, database-connected data. */
+function RealTabsNavigator() {
+  const { colors } = useTheme();
+  return (
+    <RealTabs.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        // Height is left to the library so it adds the Android/iOS safe-area inset itself.
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border, paddingTop: 4 },
+        tabBarLabelStyle: { fontFamily: fonts.sansSemibold, fontSize: 10.5 },
+      }}
+    >
+      {REAL_TABS.map((t) => (
+        <RealTabs.Screen
+          key={t.name}
+          name={t.name}
+          component={t.component}
+          options={{
+            tabBarLabel: t.label,
+            tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? t.icons[0] : t.icons[1]} size={size - 2} color={color} />,
+          }}
+        />
+      ))}
+    </RealTabs.Navigator>
   );
 }
 
@@ -181,13 +221,15 @@ export function RootNavigator() {
       <RealSideMenuProvider>
         <NavigationContainer ref={realNavigationRef} theme={navTheme(isDark, colors)} onReady={openPendingJoin}>
           <RealStack.Navigator screenOptions={pushOptions}>
-            <RealStack.Screen name="RealHome" component={RealHomeScreen} />
+            <RealStack.Screen name="Tabs" component={RealTabsNavigator} />
             <RealStack.Screen name="StudentForm" component={StudentFormScreen} />
             <RealStack.Screen name="Account" component={AccountScreen} />
             <RealStack.Screen name="ComingSoon" component={ComingSoonScreen} />
+            <RealStack.Screen name="ComingSoonList" component={ComingSoonListScreen} />
             <RealStack.Screen name="JoinBatch" component={JoinBatchScreen} />
-            <RealStack.Screen name="StudentTimetable" component={StudentTimetableScreen} />
+            {/* Fees: every batch (from the menu) or one batch's ledger (from a batch card). */}
             <RealStack.Screen name="StudentFees" component={StudentFeesScreen} />
+            <RealStack.Screen name="BatchFees" component={StudentFeesScreen} />
           </RealStack.Navigator>
         </NavigationContainer>
       </RealSideMenuProvider>

@@ -20,15 +20,17 @@ import { accountName, useAuth } from '../../lib/AuthProvider';
 import { signOut } from '../../lib/auth';
 import { fullName, initialsOf, MAX_STUDENT_PROFILES, relationLabel, StudentProfile } from '../../lib/api/studentProfiles';
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
+import { COMING_SOON_COUNT } from '../../lib/comingSoon';
 import { gradientFor } from '../../lib/utils/profileColors';
-import { realNavigationRef } from '../../navigation/realNavigationRef';
+import { navigateToTab, REAL_TAB_ROUTES, RealTabRoute, realNavigationRef } from '../../navigation/realNavigationRef';
 import { AppText, Avatar, IconName, Pill, Row } from '../ui/base';
 
 interface MenuItem {
   label: string;
   icon: IconName;
   /** Real screen to open; absent = not built yet → "Coming soon". */
-  route?: 'RealHome' | 'Account' | 'JoinBatch' | 'StudentTimetable' | 'StudentFees';
+  route?: 'RealHome' | 'Account' | 'JoinBatch' | 'StudentTimetable' | 'StudentFees' | 'Honours' | 'ComingSoonList';
+  badge?: string;
 }
 
 /**
@@ -41,7 +43,7 @@ const SECTIONS: { title: string; items: MenuItem[] }[] = [
     items: [
       { label: 'Home', icon: 'home-outline', route: 'RealHome' },
       { label: 'Join a batch', icon: 'enter-outline', route: 'JoinBatch' },
-      { label: 'Honours', icon: 'trophy-outline' },
+      { label: 'Honours', icon: 'trophy-outline', route: 'Honours', badge: 'Soon' },
     ],
   },
   {
@@ -71,6 +73,7 @@ const SECTIONS: { title: string; items: MenuItem[] }[] = [
       { label: 'Verify Documents', icon: 'shield-checkmark-outline' },
       { label: 'My account', icon: 'person-circle-outline', route: 'Account' },
       { label: 'Help & Support', icon: 'help-buoy-outline' },
+      { label: 'All coming soon', icon: 'hourglass-outline', route: 'ComingSoonList', badge: String(COMING_SOON_COUNT) },
     ],
   },
 ];
@@ -188,7 +191,8 @@ function Drawer({
   const go = (item: MenuItem) =>
     close(() => {
       if (!realNavigationRef.isReady()) return;
-      if (item.route) realNavigationRef.navigate(item.route);
+      if (item.route && (REAL_TAB_ROUTES as readonly string[]).includes(item.route)) navigateToTab(realNavigationRef, item.route as RealTabRoute);
+      else if (item.route) realNavigationRef.navigate(item.route);
       else realNavigationRef.navigate('ComingSoon', { title: item.label, icon: item.icon });
     });
 
@@ -202,7 +206,16 @@ function Drawer({
   const initials = `${profile?.first_name?.[0] ?? name[0] ?? 'V'}${profile?.last_name?.[0] ?? ''}`.toUpperCase();
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={() => close()} statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={() => close()}
+      statusBarTranslucent
+      // Draw under the Android navigation bar too, so the safe-area bottom
+      // padding below lines the footer up above it instead of being clipped.
+      navigationBarTranslucent
+    >
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim, opacity: progress }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={() => close()} accessibilityLabel="Close menu" />
       </Animated.View>
@@ -307,7 +320,7 @@ function Drawer({
                           Haptics.selectionAsync().catch(() => {});
                           setActive(p.id);
                         }
-                        close(() => realNavigationRef.isReady() && realNavigationRef.navigate('RealHome'));
+                        close(() => realNavigationRef.isReady() && navigateToTab(realNavigationRef, 'RealHome'));
                       }}
                       accessibilityRole="radio"
                       accessibilityState={{ checked: on }}
@@ -400,12 +413,36 @@ function Drawer({
                     >
                       {item.label}
                     </AppText>
-                    {ready ? null : <Pill label="Soon" tone="neutral" />}
+                    {item.badge ? <Pill label={item.badge} tone="gold" /> : ready ? null : <Pill label="Soon" tone="neutral" />}
                   </Pressable>
                 );
               })}
             </View>
           ))}
+
+          {/* Inside the scroll area so it can always be reached, however
+              small the screen or tall the student list. */}
+          <View style={{ marginTop: spacing.lg, paddingHorizontal: spacing.md }}>
+            <Pressable
+              onPress={() => close(() => signOut().catch(() => {}))}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.md,
+                paddingVertical: 12,
+                paddingHorizontal: spacing.md,
+                borderRadius: radius.md,
+                backgroundColor: colors.errorBg,
+                opacity: pressed ? 0.75 : 1,
+              })}
+            >
+              <Ionicons name="log-out-outline" size={19} color={colors.errorText} />
+              <AppText variant="bodyStrong" style={{ flex: 1, fontSize: 14, color: colors.errorText }}>
+                Log out
+              </AppText>
+            </Pressable>
+          </View>
         </ScrollView>
 
         {/* ── Footer ──────────────────────────────────────────────────── */}
@@ -416,7 +453,6 @@ function Drawer({
             paddingBottom: insets.bottom + spacing.md,
             borderTopWidth: StyleSheet.hairlineWidth,
             borderTopColor: colors.border,
-            gap: spacing.sm,
           }}
         >
           <Row gap={spacing.sm}>
@@ -427,7 +463,6 @@ function Drawer({
               onPress={() => setMode(isDark ? 'light' : 'dark')}
             />
           </Row>
-          <FooterButton icon="log-out-outline" label="Log out" danger onPress={() => close(() => signOut().catch(() => {}))} />
         </View>
       </Animated.View>
     </Modal>
@@ -438,15 +473,13 @@ function FooterButton({
   icon,
   label,
   onPress,
-  danger,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
-  danger?: boolean;
 }) {
   const { colors } = useTheme();
-  const fg = danger ? colors.errorText : colors.textSecondary;
+  const fg = colors.textSecondary;
   return (
     <Pressable
       onPress={onPress}
@@ -459,7 +492,7 @@ function FooterButton({
         gap: 6,
         paddingVertical: 10,
         borderRadius: radius.md,
-        backgroundColor: danger ? colors.errorBg : colors.surfaceMuted,
+        backgroundColor: colors.surfaceMuted,
         opacity: pressed ? 0.7 : 1,
       })}
     >
@@ -473,7 +506,7 @@ function FooterButton({
 
 /** "Class 8 · Self", "Class 4 · Mother", … */
 function describeStudent(p: StudentProfile): string {
-  return [p.class_name, p.created_by === 'self' ? 'Self' : `Added as ${relationLabel(p)}`].filter(Boolean).join(' · ');
+  return [p.class_name, p.relation === 'self' ? 'Self' : `Added as ${relationLabel(p)}`].filter(Boolean).join(' · ');
 }
 
 const styles = StyleSheet.create({

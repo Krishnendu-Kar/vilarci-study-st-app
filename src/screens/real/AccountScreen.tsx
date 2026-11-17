@@ -21,7 +21,7 @@ const GENDERS: { value: Gender; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
-/** The account owner's real details from public.users. */
+/** The account owner's details (from the phone's copy; edits are online). */
 export function AccountScreen() {
   const { colors, mode, setMode } = useTheme();
   const insets = useSafeAreaInsets();
@@ -55,16 +55,17 @@ export function AccountScreen() {
     if (!session) return;
     setBusy(true);
     setFailure(null);
-    const { error } = await supabase
-      .from('users')
-      .update({ first_name: firstName.trim(), middle_name: middleName.trim(), last_name: lastName.trim(), gender })
-      .eq('id', session.user.id);
-    setBusy(false);
+    // Online: the server also updates the copies teachers see (contact cards).
+    const { error } = await supabase.rpc('account_update', {
+      p_data: { first_name: firstName.trim(), middle_name: middleName.trim(), last_name: lastName.trim(), gender },
+    });
     if (error) {
-      setFailure(error.message);
+      setBusy(false);
+      setFailure(/network|fetch/i.test(error.message) ? 'No connection. Check your internet and try again.' : error.message);
       return;
     }
     await refreshProfile();
+    setBusy(false);
     setEditing(false);
     toast.toast('Your details are saved', 'success');
   };

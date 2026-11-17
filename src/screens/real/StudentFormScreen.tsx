@@ -36,7 +36,7 @@ const BOARDS = ['CBSE', 'ICSE', 'State Board', 'IB', 'Other'];
 
 type Errors = Partial<Record<'relation' | 'relationOther' | 'firstName' | 'lastName' | 'dob', string>>;
 
-/** Add or edit one real student profile (public.children). */
+/** Add or edit one student profile (online: the server checks the limits, then the app syncs). */
 export function StudentFormScreen() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -45,15 +45,17 @@ export function StudentFormScreen() {
   const toast = useToast();
   const editingId: string | undefined = route.params?.id;
 
-  const { data: profiles = [] } = useStudentProfiles();
+  const { profiles } = useStudentProfiles();
   const existing = profiles.find((p) => p.id === editingId);
-  const selfTaken = profiles.some((p) => p.created_by === 'self' && p.id !== editingId);
+  const selfTaken = profiles.some((p) => p.relation === 'self' && p.id !== editingId);
+  // Only the account that added a student can remove it.
+  const canRemove = existing?.my_role === 'owner';
 
   const save = useSaveStudentProfile();
   const remove = useDeleteStudentProfile();
 
-  const [relation, setRelation] = useState<Relation | null>(existing?.created_by ?? null);
-  const [relationOther, setRelationOther] = useState(existing?.created_by_other ?? '');
+  const [relation, setRelation] = useState<Relation | null>(existing?.relation ?? null);
+  const [relationOther, setRelationOther] = useState(existing?.relation_other ?? '');
   const [relationOpen, setRelationOpen] = useState(false);
   const [firstName, setFirstName] = useState(existing?.first_name ?? '');
   const [middleName, setMiddleName] = useState(existing?.middle_name ?? '');
@@ -92,8 +94,8 @@ export function StudentFormScreen() {
       await save.mutateAsync({
         id: editingId,
         input: {
-          created_by: relation!,
-          created_by_other: relation === 'other' ? relationOther.trim() : null,
+          relation: relation!,
+          relation_other: relation === 'other' ? relationOther.trim() : null,
           first_name: firstName.trim(),
           middle_name: middleName.trim(),
           last_name: lastName.trim(),
@@ -306,14 +308,14 @@ export function StudentFormScreen() {
           style={{ marginTop: spacing.xxl }}
         />
 
-        {editingId ? (
+        {editingId && canRemove ? (
           confirmDelete ? (
             <View style={{ marginTop: spacing.lg, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.errorBg }}>
               <AppText variant="subheading" style={{ color: colors.errorText }}>
                 Remove {existing?.first_name || 'this'}'s profile?
               </AppText>
               <AppText variant="caption" style={{ color: colors.errorText, marginTop: 2 }}>
-                This deletes the profile from your account. It can't be undone.
+                This removes the profile from your account and takes them out of their batches. It can't be undone.
               </AppText>
               <Row gap={spacing.sm} style={{ marginTop: spacing.md }}>
                 <Button label="Cancel" variant="secondary" size="sm" onPress={() => setConfirmDelete(false)} />

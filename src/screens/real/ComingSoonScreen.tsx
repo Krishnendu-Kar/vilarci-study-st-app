@@ -9,6 +9,7 @@ import { useAuth } from '../../lib/AuthProvider';
 import { AppText, IconName, Row } from '../../components/ui/base';
 import { Button } from '../../components/ui/Button';
 import { RealMenuButton } from '../../components/real/RealSideMenu';
+import { navigateToTab } from '../../navigation/realNavigationRef';
 
 /** Placeholder for real-app sections that aren't built yet. */
 export function ComingSoonScreen() {
@@ -65,7 +66,7 @@ export function ComingSoonScreen() {
           label="Back to home"
           variant="ghost"
           iconName="home-outline"
-          onPress={() => navigation.navigate('RealHome')}
+          onPress={() => navigateToTab(navigation, 'RealHome')}
           style={{ marginTop: spacing.sm }}
         />
       </View>

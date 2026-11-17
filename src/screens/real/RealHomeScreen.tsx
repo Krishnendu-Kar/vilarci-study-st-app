@@ -2,29 +2,23 @@ import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { elevation, radius, spacing } from '../../theme/tokens';
 import { accountName, useAuth } from '../../lib/AuthProvider';
-import { ageFrom, fullName, initialsOf, relationLabel } from '../../lib/api/studentProfiles';
-import { Membership, STATUS_LABEL, useMyMemberships } from '../../lib/api/batches';
+import { ageFrom, fullName, initialsOf } from '../../lib/api/studentProfiles';
+import { useMemberships } from '../../lib/api/batches';
+import { useRefresh } from '../../lib/sync/useRefresh';
+import { useLocalStore } from '../../lib/local/store';
+import { SyncBanner } from '../../components/real/SyncBanner';
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
-import { rupees } from '../../lib/utils/format';
 import { gradientFor } from '../../lib/utils/profileColors';
 import { DAY_NAMES, daysFromToday, weekClasses } from '../../lib/utils/timetable';
-import { AppText, Avatar, Card, EmptyState, HeroCard, IconName, Pill, Row, SectionHeader } from '../../components/ui/base';
+import { AppText, Avatar, Card, EmptyState, HeroCard, IconName, Row } from '../../components/ui/base';
 import { Button } from '../../components/ui/Button';
 import { Screen } from '../../components/ui/Screen';
-import { RealMenuButton, useRealSideMenu } from '../../components/real/RealSideMenu';
-
-
-/** Features that are still demo-only, shown so the build progress is visible. */
-const COMING_NEXT: { icon: IconName; title: string }[] = [
-  { icon: 'business-outline', title: 'Join coaching centres with a code' },
-  { icon: 'calendar-outline', title: 'Timetable & attendance' },
-  { icon: 'wallet-outline', title: 'Fees & receipts' },
-  { icon: 'document-text-outline', title: 'Tests, marks & marksheets' },
-];
+import { RealMenuButton } from '../../components/real/RealSideMenu';
 
 /**
  * Home of the real app, always about ONE student — the active profile chosen
@@ -34,16 +28,19 @@ export function RealHomeScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { session, profile, enterDemo } = useAuth();
-  const { open: openMenu } = useRealSideMenu();
-  const { active, activeIndex, profiles, isLoading } = useActiveStudent();
-  const memberships = useMyMemberships();
+  const { session, profile } = useAuth();
+  const { active, activeIndex, isLoading } = useActiveStudent();
+  const { memberships, isLoading: membershipsLoading } = useMemberships();
+  const { refreshing, refresh } = useRefresh();
+  // Nothing on this phone yet and the first sync failed (a new phone, offline).
+  const noCopy = useLocalStore((s) => !s.account && Boolean(s.syncError));
 
   const accountFirst = profile?.first_name || accountName(profile, session).split(' ')[0];
-  const mine = (memberships.data ?? []).filter((m) => m.student_id === active?.id);
+  const mine = memberships.filter((m) => m.student_id === active?.id);
   const joined = mine.filter((m) => m.status === 'approved').length;
   const waiting = mine.filter((m) => m.status === 'pending').length;
   const age = active ? ageFrom(active.dob) : null;
+  const details = active ? [active.class_name, active.board, age !== null ? `${age} yrs` : null].filter(Boolean).join(' · ') : '';
 
   // Today's classes, or the next day that has any.
   const week = weekClasses(mine);
@@ -60,9 +57,9 @@ export function RealHomeScreen() {
       >
         <RealMenuButton />
         <Pressable
-          onPress={openMenu}
+          onPress={() => navigation.navigate('StudentForm', active ? { id: active.id } : undefined)}
           accessibilityRole="button"
-          accessibilityLabel={active ? `Viewing ${fullName(active)}. Switch student` : 'Add a student'}
+          accessibilityLabel={active ? `Viewing ${fullName(active)}. Open profile` : 'Add a student'}
           style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1, opacity: pressed ? 0.7 : 1 })}
         >
           {active ? (
@@ -73,37 +70,29 @@ export function RealHomeScreen() {
             </View>
           )}
           <View style={{ flex: 1 }}>
-            <AppText variant="overline" tone="muted">
-              {active ? 'VIEWING' : 'NO STUDENT YET'}
-            </AppText>
             <Row gap={3}>
               <AppText variant="subheading" numberOfLines={1} style={{ flexShrink: 1 }}>
                 {active ? fullName(active) : 'Add a student'}
               </AppText>
-              {profiles.length > 1 ? <Ionicons name="chevron-down" size={14} color={colors.textMuted} /> : null}
+              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
             </Row>
+            <AppText variant="caption" tone="muted" numberOfLines={1}>
+              {active ? details || 'View profile' : 'No student yet'}
+            </AppText>
           </View>
-        </Pressable>
-        <Pressable
-          onPress={enterDemo}
-          accessibilityRole="button"
-          accessibilityLabel="Open demo screens"
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.demoBtn,
-            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1, ...elevation(1, colors.shadowColor, colors.shadowOpacity) },
-          ]}
-        >
-          <Ionicons name="play-circle-outline" size={17} color={colors.primary} />
-          <AppText variant="captionStrong" tone="primary">
-            Demo
-          </AppText>
         </Pressable>
       </Row>
 
-      <Screen refreshing={memberships.isRefetching} onRefresh={() => memberships.refetch()}>
+      <Screen refreshing={refreshing} onRefresh={refresh}>
+        <SyncBanner />
         {isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
+        ) : noCopy ? (
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Connect to the internet once"
+            message="Your students and batches are saved on this phone after the first sync. Then they open even without internet."
+          />
         ) : !active ? (
           /* ── No student profile yet ─────────────────────────────────── */
           <>
@@ -135,204 +124,138 @@ export function RealHomeScreen() {
           </>
         ) : (
           <>
-            {/* ── Active student ─────────────────────────────────────────── */}
-            <HeroCard>
-              <Row gap={spacing.md} align="flex-start">
-                <Avatar initials={initialsOf(active)} gradient={gradientFor(activeIndex)} size={56} ring />
-                <View style={{ flex: 1 }}>
-                  <AppText variant="overline" style={{ color: colors.goldBright }}>
-                    {active.created_by === 'self' ? 'MY STUDENT PROFILE' : `ADDED AS ${relationLabel(active).toUpperCase()}`}
-                  </AppText>
-                  <AppText variant="title" numberOfLines={2} style={{ color: '#FDFBF9', marginTop: 2 }}>
-                    {fullName(active)}
-                  </AppText>
-                  <AppText variant="caption" style={{ color: 'rgba(253,251,249,0.72)', marginTop: 2 }}>
-                    {[active.class_name, active.board, age !== null ? `${age} yrs` : null].filter(Boolean).join(' · ') ||
-                      'Add class and board in the profile'}
-                  </AppText>
-                </View>
-                <Pressable
-                  onPress={() => navigation.navigate('StudentForm', { id: active.id })}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Edit student profile"
-                  style={styles.heroEdit}
-                >
-                  <Ionicons name="create-outline" size={16} color="#FDFBF9" />
-                </Pressable>
-              </Row>
-              <Row style={{ marginTop: spacing.lg }} gap={spacing.xl}>
-                <HeroStat value={String(joined)} label="BATCHES" />
-                <HeroStat value={String(waiting)} label="WAITING" />
-              </Row>
-            </HeroCard>
+            {/* ── Batches at a glance ────────────────────────────────────── */}
+            <Row gap={spacing.md} align="stretch">
+              <BatchStat
+                value={joined}
+                label={joined === 1 ? 'Batch joined' : 'Batches joined'}
+                icon="school-outline"
+                featured
+                onPress={() => navigation.navigate('Batches')}
+              />
+              <BatchStat
+                value={waiting}
+                label={waiting === 1 ? 'Request waiting' : 'Requests waiting'}
+                icon="hourglass-outline"
+                onPress={() => navigation.navigate('Batches')}
+              />
+            </Row>
 
-            {/* ── Today / next classes ─────────────────────────────────── */}
+            {/* ── Today / next classes: one compact card ───────────────── */}
             {joined ? (
-              <View style={{ marginTop: spacing.xxl }}>
-                <SectionHeader
-                  title={!nextDay ? 'Classes' : nextDay.offset === 0 ? 'Today' : nextDay.offset === 1 ? 'Tomorrow' : DAY_NAMES[nextDay.day]}
-                  subtitle={nextDay ? `${nextClasses.length} class${nextClasses.length === 1 ? '' : 'es'}` : 'No class days set yet'}
-                  action="Timetable"
-                  onAction={() => navigation.navigate('StudentTimetable')}
-                />
-                <Card>
-                  {nextClasses.length ? (
-                    nextClasses.map((c, i) => (
-                      <Row
-                        key={`${c.membership.id}-${i}`}
-                        gap={spacing.md}
-                        style={{ paddingVertical: spacing.sm, borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: colors.border }}
-                      >
-                        <AppText variant="captionStrong" tone="primary" style={{ width: 72 }}>
-                          {c.start}
-                        </AppText>
-                        <View style={{ flex: 1 }}>
-                          <AppText variant="bodyStrong" numberOfLines={1}>
-                            {c.membership.batch_name}
-                          </AppText>
-                          <AppText variant="caption" tone="muted" numberOfLines={1}>
-                            {c.membership.teacher_name} · until {c.end}
-                          </AppText>
-                        </View>
-                      </Row>
-                    ))
-                  ) : (
-                    <AppText variant="caption" tone="muted">
-                      The teacher hasn't set class days yet.
-                    </AppText>
-                  )}
-                </Card>
-              </View>
+              <Card padded={false} style={{ marginTop: spacing.xl, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}>
+                <Row justify="space-between">
+                  <AppText variant="overline" tone="muted">
+                    {(!nextDay ? 'Classes' : nextDay.offset === 0 ? 'Today' : nextDay.offset === 1 ? 'Tomorrow' : DAY_NAMES[nextDay.day]).toUpperCase()}
+                    {nextDay ? ` · ${nextClasses.length} CLASS${nextClasses.length === 1 ? '' : 'ES'}` : ''}
+                  </AppText>
+                  <Pressable onPress={() => navigation.navigate('StudentTimetable')} hitSlop={10} accessibilityRole="button">
+                    <Row gap={2}>
+                      <AppText variant="captionStrong" tone="primary">
+                        Timetable
+                      </AppText>
+                      <Ionicons name="chevron-forward" size={13} color={colors.primary} />
+                    </Row>
+                  </Pressable>
+                </Row>
+                {nextClasses.length ? (
+                  nextClasses.map((c, i) => (
+                    <Row
+                      key={`${c.membership.id}-${i}`}
+                      gap={spacing.sm}
+                      style={{ paddingVertical: 6, marginTop: i ? 0 : 4, borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: colors.border }}
+                    >
+                      <AppText variant="captionStrong" tone="primary" style={{ width: 66 }}>
+                        {c.start}
+                      </AppText>
+                      <AppText variant="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
+                        {c.membership.batch_name}
+                      </AppText>
+                      <AppText variant="caption" tone="muted">
+                        till {c.end}
+                      </AppText>
+                    </Row>
+                  ))
+                ) : (
+                  <AppText variant="caption" tone="muted" style={{ paddingVertical: 6 }}>
+                    The teacher hasn’t set class days yet.
+                  </AppText>
+                )}
+              </Card>
             ) : null}
 
-            {/* ── This student's private batches ───────────────────────── */}
-            <View style={{ marginTop: spacing.xxl }}>
-              <SectionHeader
-                title={`${active.first_name}'s batches`}
-                subtitle="Private batches and their status"
-                action={mine.length ? 'Join' : undefined}
-                onAction={() => navigation.navigate('JoinBatch', { studentId: active.id })}
-              />
-              {memberships.isLoading ? (
-                <ActivityIndicator color={colors.primary} />
-              ) : mine.length ? (
-                <View style={{ gap: spacing.md }}>
-                  {mine.map((m) => (
-                    <MembershipCard
-                      key={m.id}
-                      m={m}
-                      onPress={m.status === 'approved' ? () => navigation.navigate('StudentFees', { membershipId: m.id }) : undefined}
-                    />
-                  ))}
-                </View>
-              ) : (
-                <Card>
-                  <Row gap={spacing.md} align="flex-start">
-                    <Ionicons name="key-outline" size={20} color={colors.primary} style={{ marginTop: 2 }} />
-                    <AppText variant="caption" tone="secondary" style={{ flex: 1 }}>
-                      {active.first_name} hasn't joined a batch yet. Got a join link or code from a teacher — tuition,
-                      music, art, yoga or anything else? Open the link, or enter the code.
-                    </AppText>
-                  </Row>
-                  <Button
-                    label={`Join a batch for ${active.first_name}`}
-                    iconName="enter-outline"
-                    fullWidth
-                    onPress={() => navigation.navigate('JoinBatch', { studentId: active.id })}
-                    style={{ marginTop: spacing.md }}
-                  />
-                </Card>
-              )}
-            </View>
+            {/* ── First batch: the batch list itself lives in the Batches tab ── */}
+            {!membershipsLoading && !mine.length ? (
+              <Card style={{ marginTop: spacing.xxl }}>
+                <Row gap={spacing.md} align="flex-start">
+                  <Ionicons name="key-outline" size={20} color={colors.primary} style={{ marginTop: 2 }} />
+                  <AppText variant="caption" tone="secondary" style={{ flex: 1 }}>
+                    {active.first_name} hasn’t joined a batch yet. Got a join link or code from a teacher — tuition,
+                    music, art, yoga or anything else? Open the link, or enter the code.
+                  </AppText>
+                </Row>
+                <Button
+                  label={`Join a batch for ${active.first_name}`}
+                  iconName="enter-outline"
+                  fullWidth
+                  onPress={() => navigation.navigate('JoinBatch', { studentId: active.id })}
+                  style={{ marginTop: spacing.md }}
+                />
+              </Card>
+            ) : null}
           </>
         )}
-
-        {/* ── Build progress ────────────────────────────────────────────── */}
-        <View style={{ marginTop: spacing.xxl }}>
-          <SectionHeader title="Coming next" subtitle="Already designed — try them in the demo" />
-          <Card>
-            {COMING_NEXT.map((f, i) => (
-              <Row
-                key={f.title}
-                gap={spacing.md}
-                style={{ paddingVertical: spacing.sm, borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: colors.border }}
-              >
-                <Ionicons name={f.icon} size={18} color={colors.textMuted} />
-                <AppText variant="bodyStrong" tone="secondary" style={{ flex: 1 }}>
-                  {f.title}
-                </AppText>
-                <Pill label="Demo" tone="neutral" />
-              </Row>
-            ))}
-            <Button label="Open the demo" variant="secondary" size="sm" iconName="play-circle-outline" fullWidth onPress={enterDemo} style={{ marginTop: spacing.md }} />
-          </Card>
-        </View>
       </Screen>
     </View>
   );
 }
 
-function MembershipCard({ m, onPress }: { m: Membership; onPress?: () => void }) {
+/** One compact number about the student's batches; the featured one sits on the brand gradient. */
+function BatchStat({
+  value,
+  label,
+  icon,
+  featured,
+  onPress,
+}: {
+  value: number;
+  label: string;
+  icon: IconName;
+  featured?: boolean;
+  onPress: () => void;
+}) {
   const { colors } = useTheme();
-  const tone = m.status === 'approved' ? 'success' : m.status === 'pending' ? 'gold' : 'error';
-  return (
-    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-    <Card>
-      <Row justify="space-between" align="flex-start" gap={spacing.md}>
-        <View style={{ flex: 1 }}>
-          <AppText variant="subheading" numberOfLines={1}>
-            {m.batch_name}
-          </AppText>
-          <AppText variant="caption" tone="muted" numberOfLines={1}>
-            {[m.subject, m.grade, m.board].filter(Boolean).join(' · ')}
-          </AppText>
-        </View>
-        <Pill label={STATUS_LABEL[m.status]} tone={tone} />
-      </Row>
-      <Row gap={6} style={{ marginTop: spacing.sm }}>
-        <Ionicons name="person-circle-outline" size={14} color={colors.textMuted} />
-        <AppText variant="caption" tone="secondary" style={{ flex: 1 }} numberOfLines={1}>
-          {m.teacher_name} · {rupees(m.monthly_fee)}/month
+  const fg = featured ? '#FDFBF9' : colors.textMain;
+  const body = (
+    <>
+      <View style={[styles.statIcon, { backgroundColor: featured ? 'rgba(253,251,249,0.16)' : colors.goldSubtle }]}>
+        <Ionicons name={icon} size={16} color={featured ? colors.goldBright : colors.gold} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <AppText variant="metricSm" style={{ color: fg }}>
+          {value}
         </AppText>
-        {onPress ? (
-          <Row gap={3}>
-            <Ionicons name="wallet-outline" size={13} color={colors.primary} />
-            <AppText variant="captionStrong" tone="primary">
-              Fees
-            </AppText>
-          </Row>
-        ) : null}
-      </Row>
-    </Card>
+        <AppText variant="caption" numberOfLines={1} style={{ color: featured ? 'rgba(253,251,249,0.75)' : colors.textMuted, fontSize: 11.5 }}>
+          {label}
+        </AppText>
+      </View>
+    </>
+  );
+  const frame = [styles.stat, elevation(1, colors.shadowColor, colors.shadowOpacity)];
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${value} ${label}. Open batches`} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.85 : 1 })}>
+      {featured ? (
+        <LinearGradient colors={colors.primaryGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={frame}>
+          {body}
+        </LinearGradient>
+      ) : (
+        <View style={[frame, { backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }]}>{body}</View>
+      )}
     </Pressable>
   );
 }
 
-function HeroStat({ value, label }: { value: string; label: string }) {
-  const { colors } = useTheme();
-  return (
-    <View>
-      <AppText variant="metricSm" style={{ color: '#FDFBF9' }}>
-        {value}
-      </AppText>
-      <AppText variant="overline" style={{ color: colors.goldBright, marginTop: 1 }}>
-        {label}
-      </AppText>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  demoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
   emptyAvatar: {
     width: 40,
     height: 40,
@@ -342,12 +265,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroEdit: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  stat: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+  },
+  statIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(253,251,249,0.16)',
   },
 });

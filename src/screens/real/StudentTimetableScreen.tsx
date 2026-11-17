@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, spacing } from '../../theme/tokens';
-import { useMyMemberships } from '../../lib/api/batches';
+import { useMemberships } from '../../lib/api/batches';
+import { useRefresh } from '../../lib/sync/useRefresh';
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
 import { ClassSlot, DAY_KEYS, DAY_NAMES, todayKey, weekClasses } from '../../lib/utils/timetable';
 import { AppText, Card, EmptyState, Pill, Row, SectionHeader } from '../../components/ui/base';
@@ -17,9 +18,10 @@ export function StudentTimetableScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const { active } = useActiveStudent();
-  const memberships = useMyMemberships();
+  const { memberships, isLoading } = useMemberships();
+  const { refreshing, refresh } = useRefresh();
 
-  const mine = (memberships.data ?? []).filter((m) => m.student_id === active?.id);
+  const mine = memberships.filter((m) => m.student_id === active?.id);
   const week = weekClasses(mine);
   const today = todayKey();
   const total = DAY_KEYS.reduce((n, d) => n + week[d].length, 0);
@@ -27,10 +29,10 @@ export function StudentTimetableScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
       <RealTopBar title="Timetable" subtitle={active ? `${active.first_name}'s week` : undefined} />
-      <Screen refreshing={memberships.isRefetching} onRefresh={() => memberships.refetch()}>
+      <Screen refreshing={refreshing} onRefresh={refresh}>
         {!active ? (
           <EmptyState icon="people-outline" title="Add a student first" message="Timetables are kept per student profile." />
-        ) : memberships.isLoading ? (
+        ) : isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
         ) : total === 0 ? (
           <View>

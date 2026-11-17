@@ -3,11 +3,13 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { spacing } from '../../theme/tokens';
-import { Membership, useMyMemberships } from '../../lib/api/batches';
-import { buildLedger, FeeRow, MODE_LABEL, useFeesForMemberships } from '../../lib/api/batchFees';
+import { Membership, useMemberships } from '../../lib/api/batches';
+import { buildLedger, MODE_LABEL, useEnrolmentMonths } from '../../lib/api/batchFees';
+import type { MonthFee } from '../../lib/local/types';
+import { useRefresh } from '../../lib/sync/useRefresh';
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
 import { courseLabel, monthLabel } from '../../lib/utils/months';
-import { formatDate, rupees } from '../../lib/utils/format';
+import { formatDate, money } from '../../lib/utils/format';
 import { AppText, Card, Divider, EmptyState, HeroCard, Pill, Row, SectionHeader } from '../../components/ui/base';
 import { Button } from '../../components/ui/Button';
 import { Screen } from '../../components/ui/Screen';
@@ -21,19 +23,21 @@ export function StudentFeesScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const { active } = useActiveStudent();
-  const memberships = useMyMemberships();
+  const { memberships, isLoading } = useMemberships();
+  const monthsByEnrolment = useEnrolmentMonths();
+  const { refreshing, refresh } = useRefresh();
   // Opened from a batch card → show just that batch's ledger.
   const onlyId: string | undefined = useRoute<any>().params?.membershipId;
 
-  const joined = (memberships.data ?? []).filter(
+  const joined = memberships.filter(
     (m) => m.student_id === active?.id && m.status === 'approved' && (!onlyId || m.id === onlyId),
   );
-  const fees = useFeesForMemberships(joined.map((m) => m.id));
-  const rows = fees.data ?? [];
-
   const ledgers = joined.map((m) => ({
     m,
-    ledger: m.course_start && m.course_end ? buildLedger(m.course_start, m.course_end, rows.filter((r) => r.membership_id === m.id), m.monthly_fee) : null,
+    ledger:
+      m.course_start && m.course_end
+        ? buildLedger(m.course_start, m.course_end, monthsByEnrolment[m.id], m.monthly_fee ?? 0)
+        : null,
   }));
   const dueTotal = ledgers.reduce((s, l) => s + (l.ledger?.dueAmount ?? 0), 0);
   const paidTotal = ledgers.reduce((s, l) => s + (l.ledger?.paid ?? 0), 0);
@@ -41,16 +45,10 @@ export function StudentFeesScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
       <RealTopBar title="Fees" subtitle={active ? `${active.first_name}'s batches` : undefined} />
-      <Screen
-        refreshing={memberships.isRefetching || fees.isRefetching}
-        onRefresh={() => {
-          memberships.refetch();
-          fees.refetch();
-        }}
-      >
+      <Screen refreshing={refreshing} onRefresh={refresh}>
         {!active ? (
           <EmptyState icon="people-outline" title="Add a student first" message="Fees are kept per student profile." />
-        ) : memberships.isLoading || fees.isLoading ? (
+        ) : isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
         ) : !joined.length ? (
           <View>
@@ -76,7 +74,7 @@ export function StudentFeesScreen() {
               <Row style={{ marginTop: spacing.md }} gap={spacing.xl}>
                 <View>
                   <AppText variant="metricSm" style={{ color: dueTotal ? '#FFD7D2' : '#FDFBF9' }}>
-                    {rupees(dueTotal)}
+                    {money(dueTotal)}
                   </AppText>
                   <AppText variant="overline" style={{ color: colors.goldBright }}>
                     DUE NOW
@@ -84,7 +82,7 @@ export function StudentFeesScreen() {
                 </View>
                 <View>
                   <AppText variant="metricSm" style={{ color: '#FDFBF9' }}>
-                    {rupees(paidTotal)}
+                    {money(paidTotal)}
                   </AppText>
                   <AppText variant="overline" style={{ color: colors.goldBright }}>
                     PAID
@@ -100,7 +98,7 @@ export function StudentFeesScreen() {
               <View key={m.id} style={{ marginTop: spacing.xxl }}>
                 <SectionHeader
                   title={m.batch_name}
-                  subtitle={`${m.teacher_name} · ${rupees(m.monthly_fee)}/month`}
+                  subtitle={`${m.teacher_name} · ${money(m.monthly_fee ?? 0)}/month`}
                 />
                 {ledger ? (
                   <BatchLedger m={m} ledger={ledger} />
@@ -129,9 +127,9 @@ function BatchLedger({ m, ledger }: { m: Membership; ledger: ReturnType<typeof b
           {courseLabel(m.course_start, m.course_end)}
         </AppText>
         <Row gap={spacing.lg} style={{ marginTop: spacing.sm, marginBottom: spacing.md }}>
-          <Total label="Paid" value={rupees(ledger.paid)} />
-          <Total label="Due" value={rupees(ledger.dueAmount)} tone={ledger.dueMonths ? colors.error : undefined} />
-          <Total label="Course" value={rupees(ledger.totalCourse)} />
+          <Total label="Paid" value={money(ledger.paid)} />
+          <Total label="Due" value={money(ledger.dueAmount)} tone={ledger.dueMonths ? colors.error : undefined} />
+          <Total label="Course" value={money(ledger.totalCourse)} />
         </Row>
       </View>
       <Divider />
@@ -143,7 +141,7 @@ function BatchLedger({ m, ledger }: { m: Membership; ledger: ReturnType<typeof b
         >
           <View style={{ flex: 1 }}>
             <AppText variant="bodyStrong">{monthLabel(lm.month)}</AppText>
-            {lm.row ? <AppText variant="caption" tone="muted">{describeRow(lm.row)}</AppText> : null}
+            {lm.fee ? <AppText variant="caption" tone="muted">{describeFee(lm.fee)}</AppText> : null}
           </View>
           <Pill label={STATE_LABEL[lm.state]} tone={STATE_TONE[lm.state]} />
         </Row>
@@ -152,9 +150,9 @@ function BatchLedger({ m, ledger }: { m: Membership; ledger: ReturnType<typeof b
   );
 }
 
-function describeRow(r: FeeRow): string {
-  if (r.status === 'waived') return r.note ? `Waived · ${r.note}` : 'Waived by teacher';
-  return [rupees(r.amount), r.mode ? MODE_LABEL[r.mode] : null, r.paid_on ? formatDate(r.paid_on) : null, r.note || null]
+function describeFee(f: MonthFee): string {
+  if (f.status === 'waived') return f.note ? `Waived · ${f.note}` : 'Waived by teacher';
+  return [money(f.amount), f.mode ? MODE_LABEL[f.mode] : null, f.paid_on ? formatDate(f.paid_on) : null, f.note || null]
     .filter(Boolean)
     .join(' · ');
 }
