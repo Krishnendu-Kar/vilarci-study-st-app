@@ -1,10 +1,10 @@
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, Share, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, spacing } from '../../theme/tokens';
-import { useMemberships } from '../../lib/api/batches';
+import { describeLeaveError, joinLinkFor, useLeaveBatch, useMemberships } from '../../lib/api/batches';
 import { useStudentNotices } from '../../lib/api/notices';
 import { buildLedger, useEnrolmentMonths } from '../../lib/api/batchFees';
 import { useStudentAttendance } from '../../lib/api/attendance';
@@ -14,8 +14,11 @@ import { useRefresh } from '../../lib/sync/useRefresh';
 import { courseLabel, monthLabel } from '../../lib/utils/months';
 import { money } from '../../lib/utils/format';
 import { DAY_KEYS, DAY_NAMES, todayKey } from '../../lib/utils/timetable';
-import { AppText, Card, EmptyState, HeroCard, IconBubble, IconName, Pill, Row, SectionHeader } from '../../components/ui/base';
+import { AppText, Card, Divider, EmptyState, HeroCard, IconBubble, IconName, Pill, Row, SectionHeader } from '../../components/ui/base';
 import { Screen } from '../../components/ui/Screen';
+import { ConfirmSheet } from '../../components/ui/ConfirmSheet';
+import { Sheet } from '../../components/ui/Sheet';
+import { useToast } from '../../components/ui/Toast';
 import { HeaderIconButton, StackHeader } from '../../components/real/StackHeader';
 import { NoticeCard } from '../../components/real/NoticeCard';
 
@@ -39,6 +42,10 @@ export function BatchDetailScreen() {
   const { items: notices } = useStudentNotices(m?.batch_id ?? '-');
   const newNotices = notices.filter((n) => n.isNew).length;
   const { overall } = useStudentAttendance(m);
+  const toast = useToast();
+  const leave = useLeaveBatch();
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [menu, setMenu] = useState(false);
 
   if (!m) {
     return (
@@ -61,11 +68,41 @@ export function BatchDetailScreen() {
   const soon = (title: string, icon: IconName) => () => navigation.navigate('ComingSoon', { title, icon });
   const openNotices = () => navigation.navigate('StudentNotices', { batchId: m.batch_id, batchName: m.batch_name });
 
+  /** Close the menu, then go — after its slide-out, so two sheets never overlap (iOS refuses that). */
+  const fromMenu = (go: () => void) => () => {
+    setMenu(false);
+    setTimeout(go, 300);
+  };
+
+  const shareLink = () => {
+    if (!m.join_code) return;
+    Share.share({
+      message:
+        `Join ${m.batch_name} (${m.subject})${m.teacher_name ? ` with ${m.teacher_name}` : ''} on Vilarci Study.\n\n` +
+        `Tap to join: ${joinLinkFor(m.join_code)}\nJoin code: ${m.join_code}`,
+    }).catch(() => {});
+  };
+
+  const doLeave = async () => {
+    try {
+      await leave.mutateAsync(m.id);
+      toast.toast(`Left ${m.batch_name}`, 'info');
+      navigation.goBack();
+    } catch (err) {
+      toast.toast(describeLeaveError(err), 'error');
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
       <StackHeader
         title={m.batch_name}
-        right={<HeaderIconButton icon="megaphone-outline" label="Notices" badge={newNotices} tilt={-15} onPress={openNotices} />}
+        right={
+          <>
+            <HeaderIconButton icon="megaphone-outline" label="Notices" badge={newNotices} tilt={-15} onPress={openNotices} />
+            <HeaderIconButton icon="ellipsis-vertical" label="Batch options" onPress={() => setMenu(true)} />
+          </>
+        }
       />
       <Screen refreshing={refreshing} onRefresh={refresh}>
         {/* ── What this batch is ─────────────────────────────────────── */}
@@ -201,7 +238,107 @@ export function BatchDetailScreen() {
           </View>
         ) : null}
       </Screen>
+
+      {/* ── ⋮ menu ─────────────────────────────────────────────────────── */}
+      <Sheet visible={menu} onClose={() => setMenu(false)} title={m.batch_name} subtitle={[m.subject, m.grade, m.board].filter(Boolean).join(' · ')}>
+        <View style={{ paddingBottom: spacing.md }}>
+          <MenuRow
+            icon="person-add-outline"
+            title="Add students"
+            subtitle="Invite a friend: QR code, link and join code"
+            onPress={fromMenu(() => navigation.navigate('BatchInvite', { membershipId: m.id }))}
+          />
+          <MenuRow
+            icon="information-circle-outline"
+            title="Batch info"
+            subtitle="Teacher, fee, course, room and timetable"
+            onPress={fromMenu(() => navigation.navigate('BatchInfo', { membershipId: m.id }))}
+          />
+          <MenuRow
+            icon="checkmark-done-outline"
+            title="Attendance"
+            subtitle={overall.held ? `${percentLabel(overall.percent)} so far` : 'No classes marked yet'}
+            onPress={fromMenu(() => navigation.navigate('StudentAttendance', { membershipId: m.id }))}
+          />
+          <MenuRow
+            icon="wallet-outline"
+            title="Fees"
+            subtitle={feeLine}
+            onPress={fromMenu(() => navigation.navigate('BatchFees', { membershipId: m.id }))}
+          />
+          <MenuRow
+            icon="megaphone-outline"
+            title="Notices"
+            subtitle={newNotices ? `${newNotices} new` : notices.length ? `${notices.length} from the teacher` : 'None yet'}
+            onPress={fromMenu(openNotices)}
+          />
+          {m.join_code ? <MenuRow icon="share-social-outline" title="Share join link" onPress={fromMenu(shareLink)} /> : null}
+          {m.status === 'approved' ? (
+            <>
+              <Divider style={{ marginVertical: spacing.sm }} />
+              <MenuRow
+                icon="exit-outline"
+                title="Leave batch"
+                subtitle="The teacher keeps the history · needs the internet"
+                danger
+                onPress={fromMenu(() => setConfirmLeave(true))}
+              />
+            </>
+          ) : null}
+        </View>
+      </Sheet>
+
+      <ConfirmSheet
+        visible={confirmLeave}
+        title={`Take ${m.student_name.split(' ')[0]} out of ${m.batch_name}?`}
+        message={
+          'The teacher stops seeing your number and the batch leaves this app. ' +
+          'Attendance and fees so far stay with the teacher. You can join again later with the same code. Needs the internet.'
+        }
+        confirmLabel="Leave"
+        confirmIcon="exit-outline"
+        onClose={() => setConfirmLeave(false)}
+        onConfirm={doLeave}
+      />
     </View>
+  );
+}
+
+function MenuRow({
+  icon,
+  title,
+  subtitle,
+  danger,
+  onPress,
+}: {
+  icon: IconName;
+  title: string;
+  subtitle?: string;
+  danger?: boolean;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [styles.menuRow, { backgroundColor: pressed ? colors.surfaceMuted : 'transparent' }]}
+    >
+      <View style={[styles.menuIcon, { backgroundColor: danger ? colors.errorBg : colors.primarySubtle }]}>
+        <Ionicons name={icon} size={18} color={danger ? colors.error : colors.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <AppText variant="bodyStrong" style={{ color: danger ? colors.error : colors.textMain }}>
+          {title}
+        </AppText>
+        {subtitle ? (
+          <AppText variant="caption" tone="muted" numberOfLines={1}>
+            {subtitle}
+          </AppText>
+        ) : null}
+      </View>
+      {danger ? null : <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
+    </Pressable>
   );
 }
 
@@ -271,4 +408,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+  },
+  menuIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });

@@ -93,6 +93,8 @@ export interface Batch {
   capacity: number;
   course_start: string | null;
   course_end: string | null;
+  /** Sent to families with an approved student since 2026-11-24 (to invite friends); older copies lack it until the next sync. */
+  join_code?: string;
   teacher_card: TeacherCard;
   seq: number;
   created_at: number;

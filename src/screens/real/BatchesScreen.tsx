@@ -1,16 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { spacing } from '../../theme/tokens';
-import { Membership, MembershipStatus, STATUS_LABEL, useMemberships } from '../../lib/api/batches';
+import {
+  describeLeaveError,
+  Membership,
+  MembershipStatus,
+  STATUS_LABEL,
+  useLeaveBatch,
+  useMemberships,
+} from '../../lib/api/batches';
 import { useRefresh } from '../../lib/sync/useRefresh';
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
 import { money } from '../../lib/utils/format';
 import { AppText, Card, EmptyState, Pill, Row, SectionHeader } from '../../components/ui/base';
 import { Button } from '../../components/ui/Button';
 import { Screen } from '../../components/ui/Screen';
+import { ConfirmSheet } from '../../components/ui/ConfirmSheet';
+import { useToast } from '../../components/ui/Toast';
 import { RealTopBar } from '../../components/real/RealTopBar';
 
 const GROUPS: { key: string; statuses: MembershipStatus[]; title: string; subtitle: string }[] = [
@@ -28,8 +37,21 @@ export function BatchesScreen() {
   const { memberships, isLoading } = useMemberships();
   const { refreshing, refresh } = useRefresh();
 
+  const toast = useToast();
+  const leave = useLeaveBatch();
+  const [cancelling, setCancelling] = useState<Membership | null>(null);
+
   const mine = memberships.filter((m) => m.student_id === active?.id);
   const join = () => navigation.navigate('JoinBatch', active ? { studentId: active.id } : undefined);
+
+  const cancelRequest = async (m: Membership) => {
+    try {
+      await leave.mutateAsync(m.id);
+      toast.toast(`Request to ${m.batch_name} cancelled`, 'info');
+    } catch (err) {
+      toast.toast(describeLeaveError(err), 'error');
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
@@ -63,6 +85,7 @@ export function BatchesScreen() {
                         key={m.id}
                         m={m}
                         onPress={m.status === 'approved' ? () => navigation.navigate('BatchDetail', { membershipId: m.id }) : undefined}
+                        onCancel={m.status === 'pending' ? () => setCancelling(m) : undefined}
                       />
                     ))}
                   </View>
@@ -72,11 +95,25 @@ export function BatchesScreen() {
           </>
         )}
       </Screen>
+
+      <ConfirmSheet
+        visible={cancelling != null}
+        title="Cancel this request?"
+        message={
+          cancelling
+            ? `${cancelling.batch_name} won’t see the request any more. You can ask again later with the same code. Needs the internet.`
+            : ''
+        }
+        confirmLabel="Cancel request"
+        confirmIcon="close-circle-outline"
+        onClose={() => setCancelling(null)}
+        onConfirm={() => cancelling && cancelRequest(cancelling)}
+      />
     </View>
   );
 }
 
-function MembershipCard({ m, onPress }: { m: Membership; onPress?: () => void }) {
+function MembershipCard({ m, onPress, onCancel }: { m: Membership; onPress?: () => void; onCancel?: () => void }) {
   const { colors } = useTheme();
   const tone = m.status === 'approved' ? 'success' : m.status === 'pending' ? 'gold' : m.status === 'declined' ? 'error' : 'neutral';
   return (
@@ -105,6 +142,13 @@ function MembershipCard({ m, onPress }: { m: Membership; onPress?: () => void })
               </AppText>
               <Ionicons name="chevron-forward" size={13} color={colors.primary} />
             </Row>
+          ) : null}
+          {onCancel ? (
+            <Pressable onPress={onCancel} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Cancel the request to ${m.batch_name}`}>
+              <AppText variant="captionStrong" tone="error">
+                Cancel request
+              </AppText>
+            </Pressable>
           ) : null}
         </Row>
       </Card>

@@ -57,9 +57,18 @@ export interface Membership {
   joined_month: string | null;
   /** When the teacher last decided (approved) — attendance counts from that day. */
   decided_at: number | null;
+  /** The batch's join code (approved families only, to invite friends); null until synced. */
+  join_code: string | null;
 }
 
 const CODE_RE = /^VLR-[A-Z0-9]{6}$/;
+
+/** Base of the shareable join link — the same as the teacher app's (vilarci.in now, study.vilarci.in later). */
+export const JOIN_LINK_BASE = (process.env.EXPO_PUBLIC_JOIN_LINK_BASE ?? 'https://vilarci.in/join/').replace(/\/?$/, '/');
+
+export function joinLinkFor(code: string): string {
+  return `${JOIN_LINK_BASE}${code}`;
+}
 
 /** "vlr-cz78hg " → "VLR-CZ78HG"; accepts the 6 characters without the prefix too. */
 export function normalizeJoinCode(input: string): string {
@@ -116,6 +125,7 @@ export function useMemberships(): { memberships: Membership[]; isLoading: boolea
         course_end: batch?.course_end ?? null,
         joined_month: e.joined_month,
         decided_at: e.decided_at,
+        join_code: e.status === 'approved' ? batch?.join_code ?? null : null,
       });
     }
     return out.sort((a, b) => b.requested_at - a.requested_at);
@@ -148,6 +158,11 @@ export function useRequestJoin() {
   });
 }
 
+/**
+ * Leave a batch, or cancel a request that's still waiting (online). The
+ * teacher keeps the attendance and fee history and stops seeing the parent's
+ * number; joining again later uses the same code.
+ */
 export function useLeaveBatch() {
   return useMutation({
     mutationFn: async (enrolmentId: string) => {
@@ -156,6 +171,14 @@ export function useLeaveBatch() {
       await requestSync();
     },
   });
+}
+
+export function describeLeaveError(err: unknown): string {
+  const msg = String((err as Error)?.message ?? '');
+  if (/not in the batch/i.test(msg)) return 'Already out of this batch. Pull down to refresh.';
+  if (/not on your account/i.test(msg)) return 'This student isn’t on your account any more.';
+  if (/network|fetch|timed? ?out/i.test(msg)) return 'No connection. Leaving a batch needs the internet.';
+  return msg || 'Something went wrong. Please try again.';
 }
 
 export function describeJoinError(err: unknown): string {
