@@ -16,7 +16,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../theme/ThemeProvider';
 import { elevation, radius, spacing } from '../../theme/tokens';
-import { accountName, useAuth } from '../../lib/AuthProvider';
+import { useAuth } from '../../lib/AuthProvider';
 import { signOut } from '../../lib/auth';
 import { fullName, initialsOf, MAX_STUDENT_PROFILES, relationLabel, StudentProfile } from '../../lib/api/studentProfiles';
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
@@ -24,6 +24,7 @@ import { COMING_SOON_COUNT } from '../../lib/comingSoon';
 import { gradientFor } from '../../lib/utils/profileColors';
 import { navigateToTab, REAL_TAB_ROUTES, RealTabRoute, realNavigationRef } from '../../navigation/realNavigationRef';
 import { AppText, Avatar, IconName, Pill, Row } from '../ui/base';
+import { BrandMark } from './BrandMark';
 
 interface MenuItem {
   label: string;
@@ -150,7 +151,7 @@ function Drawer({
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const width = Math.min(320, screenWidth * 0.84);
-  const { session, profile, enterDemo } = useAuth();
+  const { enterDemo } = useAuth();
   const { active: student, activeIndex, profiles, setActive } = useActiveStudent();
 
   const progress = useRef(new Animated.Value(0)).current;
@@ -202,8 +203,6 @@ function Drawer({
       : active.route === 'ComingSoon' && active.title === item.label;
 
   const translateX = Animated.add(progress.interpolate({ inputRange: [0, 1], outputRange: [-width, 0] }), drag);
-  const name = accountName(profile, session);
-  const initials = `${profile?.first_name?.[0] ?? name[0] ?? 'V'}${profile?.last_name?.[0] ?? ''}`.toUpperCase();
 
   return (
     <Modal
@@ -243,23 +242,13 @@ function Drawer({
           end={{ x: 1, y: 1 }}
           style={{ paddingTop: insets.top + spacing.md, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg }}
         >
-          <Row justify="space-between">
-            <Pressable
-              onPress={() => go({ label: 'My account', icon: 'person-circle-outline', route: 'Account' })}
-              accessibilityRole="button"
-              accessibilityLabel="My account"
-              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1, opacity: pressed ? 0.7 : 1 })}
-            >
-              <Avatar initials={initials} gradient={['#5a0812', '#8E1437']} size={28} />
-              <View style={{ flex: 1 }}>
-                <AppText variant="captionStrong" numberOfLines={1} style={{ color: '#FDFBF9' }}>
-                  {name}
-                </AppText>
-                <AppText variant="caption" numberOfLines={1} style={{ color: 'rgba(253,251,249,0.6)', fontSize: 11 }}>
-                  Account · {profile?.email ?? profile?.whatsapp_number ?? 'Vilarci Study'}
-                </AppText>
-              </View>
-            </Pressable>
+          <Row justify="space-between" style={{ marginBottom: spacing.md }}>
+            <Row gap={spacing.sm}>
+              <BrandMark size={30} />
+              <AppText variant="subheading" style={{ color: '#FDFBF9' }}>
+                Vilarci Study
+              </AppText>
+            </Row>
             <Pressable
               onPress={() => close()}
               hitSlop={10}
@@ -270,8 +259,6 @@ function Drawer({
               <Ionicons name="close" size={18} color="#FDFBF9" />
             </Pressable>
           </Row>
-
-          <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(253,251,249,0.2)', marginVertical: spacing.md }} />
 
           {student ? (
             <Row gap={spacing.md}>
