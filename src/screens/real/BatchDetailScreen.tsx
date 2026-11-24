@@ -4,22 +4,20 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, spacing } from '../../theme/tokens';
-import { toISODate } from '../../lib/auth';
 import { useMemberships } from '../../lib/api/batches';
+import { useStudentNotices } from '../../lib/api/notices';
 import { buildLedger, useEnrolmentMonths } from '../../lib/api/batchFees';
 import { useStudentAttendance } from '../../lib/api/attendance';
 import { LOW_ATTENDANCE, percentLabel } from '../../lib/utils/attendance';
 import { useLocalStore } from '../../lib/local/store';
-import type { BatchNotice } from '../../lib/local/types';
 import { useRefresh } from '../../lib/sync/useRefresh';
 import { courseLabel, monthLabel } from '../../lib/utils/months';
-import { formatDate, money } from '../../lib/utils/format';
+import { money } from '../../lib/utils/format';
 import { DAY_KEYS, DAY_NAMES, todayKey } from '../../lib/utils/timetable';
 import { AppText, Card, EmptyState, HeroCard, IconBubble, IconName, Pill, Row, SectionHeader } from '../../components/ui/base';
 import { Screen } from '../../components/ui/Screen';
-import { StackHeader } from '../../components/real/StackHeader';
-
-const NO_NOTICES: BatchNotice[] = [];
+import { HeaderIconButton, StackHeader } from '../../components/real/StackHeader';
+import { NoticeCard } from '../../components/real/NoticeCard';
 
 /**
  * One batch the student has joined: what it is, its sections (Fees and
@@ -36,7 +34,10 @@ export function BatchDetailScreen() {
 
   const m = memberships.find((x) => x.id === membershipId);
   const batch = useLocalStore((s) => (m ? s.batches[m.batch_id] : undefined));
-  const notices = useLocalStore((s) => (m ? s.notices[m.batch_id] : undefined)) ?? NO_NOTICES;
+  // The active student's notices for this batch. They count as seen once the
+  // Notices screen is opened (from the 📣 icon or "See all"), not here.
+  const { items: notices } = useStudentNotices(m?.batch_id ?? '-');
+  const newNotices = notices.filter((n) => n.isNew).length;
   const { overall } = useStudentAttendance(m);
 
   if (!m) {
@@ -54,15 +55,18 @@ export function BatchDetailScreen() {
     m.course_start && m.course_end ? buildLedger(m.course_start, m.course_end, monthsByEnrolment[m.id], m.monthly_fee ?? 0) : null;
   const feeLine = !ledger ? 'Not set yet' : ledger.dueAmount ? `${money(ledger.dueAmount)} due` : 'Nothing due';
   const course = courseLabel(m.course_start, m.course_end);
-  const live = notices.filter((n) => !n.deleted_at);
   const today = todayKey();
   const teacher = batch?.teacher_card;
 
   const soon = (title: string, icon: IconName) => () => navigation.navigate('ComingSoon', { title, icon });
+  const openNotices = () => navigation.navigate('StudentNotices', { batchId: m.batch_id, batchName: m.batch_name });
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
-      <StackHeader title={m.batch_name} />
+      <StackHeader
+        title={m.batch_name}
+        right={<HeaderIconButton icon="megaphone-outline" label="Notices" badge={newNotices} tilt={-15} onPress={openNotices} />}
+      />
       <Screen refreshing={refreshing} onRefresh={refresh}>
         {/* ── What this batch is ─────────────────────────────────────── */}
         <HeroCard>
@@ -138,19 +142,23 @@ export function BatchDetailScreen() {
 
         {/* ── Notices ────────────────────────────────────────────────── */}
         <View style={{ marginTop: spacing.xxl }}>
-          <SectionHeader title="Notices" />
-          {live.length ? (
+          <SectionHeader
+            title="Notices"
+            subtitle={newNotices ? `${newNotices} new` : notices.length > 3 ? `${notices.length} notices` : undefined}
+            action={notices.length ? 'See all' : undefined}
+            onAction={openNotices}
+          />
+          {notices.length ? (
             <View style={{ gap: spacing.sm }}>
-              {live.map((n) => (
-                <Card key={n.id}>
-                  <Row gap={spacing.sm} style={{ marginBottom: 4 }}>
-                    {n.pinned ? <Pill label="Pinned" tone="gold" icon="pin-outline" /> : null}
-                    <AppText variant="caption" tone="muted">
-                      {formatDate(toISODate(new Date(n.created_at)))}
-                    </AppText>
-                  </Row>
-                  <AppText variant="body">{n.body}</AppText>
-                </Card>
+              {notices.slice(0, 3).map((n) => (
+                <Pressable
+                  key={n.id}
+                  onPress={openNotices}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+                >
+                  <NoticeCard notice={n} isNew={n.isNew} lines={4} />
+                </Pressable>
               ))}
             </View>
           ) : (

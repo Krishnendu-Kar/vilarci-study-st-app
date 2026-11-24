@@ -37,6 +37,7 @@ import { StudentFormScreen } from '../screens/real/StudentFormScreen';
 import { StudentProfileScreen } from '../screens/real/StudentProfileScreen';
 import { BatchDetailScreen } from '../screens/real/BatchDetailScreen';
 import { StudentAttendanceScreen } from '../screens/real/StudentAttendanceScreen';
+import { StudentNoticesScreen } from '../screens/real/StudentNoticesScreen';
 import { AccountScreen } from '../screens/real/AccountScreen';
 import { ComingSoonScreen } from '../screens/real/ComingSoonScreen';
 import { ComingSoonListScreen } from '../screens/real/ComingSoonListScreen';
@@ -234,6 +235,8 @@ export function RootNavigator() {
             <RealStack.Screen name="BatchDetail" component={BatchDetailScreen} />
             {/* Attendance: every batch (from the menu) or one batch (from the batch page). */}
             <RealStack.Screen name="StudentAttendance" component={StudentAttendanceScreen} />
+            {/* Notices: every batch (bell, menu, Home) or one batch (its page). */}
+            <RealStack.Screen name="StudentNotices" component={StudentNoticesScreen} />
             {/* Fees: every batch (from the menu) or one batch's ledger (from the batch page). */}
             <RealStack.Screen name="StudentFees" component={StudentFeesScreen} />
             <RealStack.Screen name="BatchFees" component={StudentFeesScreen} />

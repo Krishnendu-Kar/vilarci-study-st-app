@@ -15,7 +15,9 @@ import { SyncBanner } from '../../components/real/SyncBanner';
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
 import { gradientFor } from '../../lib/utils/profileColors';
 import { DAY_NAMES, daysFromToday, weekClasses } from '../../lib/utils/timetable';
-import { AppText, Avatar, Card, EmptyState, HeroCard, IconName, Row } from '../../components/ui/base';
+import { AppText, Avatar, Card, EmptyState, HeroCard, IconName, Row, SectionHeader } from '../../components/ui/base';
+import { NoticeCard } from '../../components/real/NoticeCard';
+import { useStudentNotices } from '../../lib/api/notices';
 import { Button } from '../../components/ui/Button';
 import { Screen } from '../../components/ui/Screen';
 import { RealMenuButton } from '../../components/real/RealSideMenu';
@@ -32,6 +34,7 @@ export function RealHomeScreen() {
   const { active, activeIndex, isLoading } = useActiveStudent();
   const { memberships, isLoading: membershipsLoading } = useMemberships();
   const { refreshing, refresh } = useRefresh();
+  const { items: notices, newCount } = useStudentNotices();
   // Nothing on this phone yet and the first sync failed (a new phone, offline).
   const noCopy = useLocalStore((s) => !s.account && Boolean(s.syncError));
 
@@ -81,6 +84,27 @@ export function RealHomeScreen() {
             </AppText>
           </View>
         </Pressable>
+        {active ? (
+          <Pressable
+            onPress={() => navigation.navigate('StudentNotices')}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={newCount ? `Notices, ${newCount} new` : 'Notices'}
+            style={({ pressed }) => [
+              styles.bell,
+              { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
+            ]}
+          >
+            <Ionicons name={newCount ? 'notifications' : 'notifications-outline'} size={19} color={newCount ? colors.primary : colors.textMain} />
+            {newCount ? (
+              <View style={[styles.bellBadge, { backgroundColor: colors.error, borderColor: colors.bgApp }]}>
+                <AppText variant="caption" style={{ color: '#FFFFFF', fontSize: 10, lineHeight: 13, fontWeight: '700' }}>
+                  {newCount > 9 ? '9+' : newCount}
+                </AppText>
+              </View>
+            ) : null}
+          </Pressable>
+        ) : null}
       </Row>
 
       <Screen refreshing={refreshing} onRefresh={refresh}>
@@ -184,6 +208,30 @@ export function RealHomeScreen() {
               </Card>
             ) : null}
 
+            {/* ── Notices: the latest two, the rest one tap away ─────────── */}
+            {notices.length ? (
+              <View style={{ marginTop: spacing.xxl }}>
+                <SectionHeader
+                  title="Notices"
+                  subtitle={newCount ? `${newCount} new` : undefined}
+                  action="All"
+                  onAction={() => navigation.navigate('StudentNotices')}
+                />
+                <View style={{ gap: spacing.md }}>
+                  {notices.slice(0, 2).map((n) => (
+                    <Pressable
+                      key={`${n.batch_id}:${n.id}`}
+                      onPress={() => navigation.navigate('StudentNotices')}
+                      accessibilityRole="button"
+                      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+                    >
+                      <NoticeCard notice={n} isNew={n.isNew} showBatch lines={3} />
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             {/* ── First batch: the batch list itself lives in the Batches tab ── */}
             {!membershipsLoading && !mine.length ? (
               <Card style={{ marginTop: spacing.xxl }}>
@@ -256,6 +304,26 @@ function BatchStat({
 }
 
 const styles = StyleSheet.create({
+  bell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyAvatar: {
     width: 40,
     height: 40,

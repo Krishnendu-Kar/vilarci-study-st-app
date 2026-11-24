@@ -26,28 +26,34 @@ export function StackHeader({ title, right }: { title?: string; right?: React.Re
   );
 }
 
-/** Round icon button sized for the header; `danger` for destructive actions. */
+/** Round icon button sized for the header; `danger` for destructive actions, `badge` for a count (e.g. new notices). */
 export function HeaderIconButton({
   icon,
   label,
   onPress,
   danger,
   disabled,
+  badge,
+  tilt,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
   danger?: boolean;
   disabled?: boolean;
+  badge?: number;
+  /** Turns the icon only (degrees, negative = to the left); the button and badge stay straight. */
+  tilt?: number;
 }) {
   const { colors } = useTheme();
+  const tint = danger ? colors.errorText : badge ? colors.primary : colors.textMain;
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       hitSlop={8}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={badge ? `${label}, ${badge} new` : label}
       style={({ pressed }) => [
         styles.iconBtn,
         {
@@ -57,7 +63,19 @@ export function HeaderIconButton({
         },
       ]}
     >
-      <Ionicons name={icon} size={danger ? 17 : 19} color={danger ? colors.errorText : colors.textMain} />
+      <Ionicons
+        name={icon}
+        size={danger ? 17 : 19}
+        color={tint}
+        style={tilt ? { transform: [{ rotate: `${tilt}deg` }] } : undefined}
+      />
+      {badge ? (
+        <View style={[styles.badge, { backgroundColor: colors.error, borderColor: colors.bgApp }]}>
+          <AppText variant="caption" style={styles.badgeText}>
+            {badge > 9 ? '9+' : badge}
+          </AppText>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -71,4 +89,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
   },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { color: '#FFFFFF', fontSize: 10, lineHeight: 13, fontWeight: '700' },
 });

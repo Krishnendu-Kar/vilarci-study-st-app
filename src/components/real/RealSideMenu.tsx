@@ -25,12 +25,22 @@ import { gradientFor } from '../../lib/utils/profileColors';
 import { navigateToTab, REAL_TAB_ROUTES, RealTabRoute, realNavigationRef } from '../../navigation/realNavigationRef';
 import { AppText, Avatar, IconName, Pill, Row } from '../ui/base';
 import { BrandMark } from './BrandMark';
+import { useStudentNotices } from '../../lib/api/notices';
 
 interface MenuItem {
   label: string;
   icon: IconName;
   /** Real screen to open; absent = not built yet → "Coming soon". */
-  route?: 'RealHome' | 'Account' | 'JoinBatch' | 'StudentTimetable' | 'StudentAttendance' | 'StudentFees' | 'Honours' | 'ComingSoonList';
+  route?:
+    | 'RealHome'
+    | 'Account'
+    | 'JoinBatch'
+    | 'StudentNotices'
+    | 'StudentTimetable'
+    | 'StudentAttendance'
+    | 'StudentFees'
+    | 'Honours'
+    | 'ComingSoonList';
   badge?: string;
 }
 
@@ -43,6 +53,7 @@ const SECTIONS: { title: string; items: MenuItem[] }[] = [
     title: 'OVERVIEW',
     items: [
       { label: 'Home', icon: 'home-outline', route: 'RealHome' },
+      { label: 'Notices', icon: 'megaphone-outline', route: 'StudentNotices' },
       { label: 'Join a batch', icon: 'enter-outline', route: 'JoinBatch' },
       { label: 'Honours', icon: 'trophy-outline', route: 'Honours', badge: 'Soon' },
     ],
@@ -153,6 +164,7 @@ function Drawer({
   const width = Math.min(320, screenWidth * 0.84);
   const { enterDemo } = useAuth();
   const { active: student, activeIndex, profiles, setActive } = useActiveStudent();
+  const { newCount: newNotices } = useStudentNotices();
 
   const progress = useRef(new Animated.Value(0)).current;
   const drag = useRef(new Animated.Value(0)).current;
@@ -400,7 +412,13 @@ function Drawer({
                     >
                       {item.label}
                     </AppText>
-                    {item.badge ? <Pill label={item.badge} tone="gold" /> : ready ? null : <Pill label="Soon" tone="neutral" />}
+                    {item.route === 'StudentNotices' && newNotices ? (
+                      <Pill label={`${newNotices} new`} tone="primary" solid />
+                    ) : item.badge ? (
+                      <Pill label={item.badge} tone="gold" />
+                    ) : ready ? null : (
+                      <Pill label="Soon" tone="neutral" />
+                    )}
                   </Pressable>
                 );
               })}
