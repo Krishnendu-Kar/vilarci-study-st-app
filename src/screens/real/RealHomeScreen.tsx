@@ -57,7 +57,7 @@ export function RealHomeScreen() {
       >
         <RealMenuButton />
         <Pressable
-          onPress={() => navigation.navigate('StudentForm', active ? { id: active.id } : undefined)}
+          onPress={() => (active ? navigation.navigate('StudentProfile', { id: active.id }) : navigation.navigate('StudentForm'))}
           accessibilityRole="button"
           accessibilityLabel={active ? `Viewing ${fullName(active)}. Open profile` : 'Add a student'}
           style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1, opacity: pressed ? 0.7 : 1 })}

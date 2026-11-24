@@ -14,7 +14,7 @@ import { Screen } from '../../components/ui/Screen';
 import { RealTopBar } from '../../components/real/RealTopBar';
 
 const GROUPS: { key: string; statuses: MembershipStatus[]; title: string; subtitle: string }[] = [
-  { key: 'joined', statuses: ['approved'], title: 'Joined', subtitle: 'Tap a batch to see its fees' },
+  { key: 'joined', statuses: ['approved'], title: 'Joined', subtitle: 'Tap a batch to open it' },
   { key: 'waiting', statuses: ['pending'], title: 'Waiting for teacher', subtitle: 'The teacher approves every request' },
   { key: 'declined', statuses: ['declined'], title: 'Declined', subtitle: 'Ask the teacher if this was a mistake' },
   { key: 'past', statuses: ['left', 'removed'], title: 'Past batches', subtitle: 'No longer in these batches' },
@@ -62,7 +62,7 @@ export function BatchesScreen() {
                       <MembershipCard
                         key={m.id}
                         m={m}
-                        onPress={m.status === 'approved' ? () => navigation.navigate('BatchFees', { membershipId: m.id }) : undefined}
+                        onPress={m.status === 'approved' ? () => navigation.navigate('BatchDetail', { membershipId: m.id }) : undefined}
                       />
                     ))}
                   </View>
@@ -99,11 +99,11 @@ function MembershipCard({ m, onPress }: { m: Membership; onPress?: () => void })
             {[m.teacher_name, m.monthly_fee != null ? `${money(m.monthly_fee)}/month` : null].filter(Boolean).join(' · ')}
           </AppText>
           {onPress ? (
-            <Row gap={3}>
-              <Ionicons name="wallet-outline" size={13} color={colors.primary} />
+            <Row gap={2}>
               <AppText variant="captionStrong" tone="primary">
-                Fees
+                Open
               </AppText>
+              <Ionicons name="chevron-forward" size={13} color={colors.primary} />
             </Row>
           ) : null}
         </Row>

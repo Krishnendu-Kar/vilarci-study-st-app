@@ -34,6 +34,9 @@ import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 import { useAuth } from '../lib/AuthProvider';
 import { RealHomeScreen } from '../screens/real/RealHomeScreen';
 import { StudentFormScreen } from '../screens/real/StudentFormScreen';
+import { StudentProfileScreen } from '../screens/real/StudentProfileScreen';
+import { BatchDetailScreen } from '../screens/real/BatchDetailScreen';
+import { StudentAttendanceScreen } from '../screens/real/StudentAttendanceScreen';
 import { AccountScreen } from '../screens/real/AccountScreen';
 import { ComingSoonScreen } from '../screens/real/ComingSoonScreen';
 import { ComingSoonListScreen } from '../screens/real/ComingSoonListScreen';
@@ -222,12 +225,16 @@ export function RootNavigator() {
         <NavigationContainer ref={realNavigationRef} theme={navTheme(isDark, colors)} onReady={openPendingJoin}>
           <RealStack.Navigator screenOptions={pushOptions}>
             <RealStack.Screen name="Tabs" component={RealTabsNavigator} />
+            <RealStack.Screen name="StudentProfile" component={StudentProfileScreen} />
             <RealStack.Screen name="StudentForm" component={StudentFormScreen} />
             <RealStack.Screen name="Account" component={AccountScreen} />
             <RealStack.Screen name="ComingSoon" component={ComingSoonScreen} />
             <RealStack.Screen name="ComingSoonList" component={ComingSoonListScreen} />
             <RealStack.Screen name="JoinBatch" component={JoinBatchScreen} />
-            {/* Fees: every batch (from the menu) or one batch's ledger (from a batch card). */}
+            <RealStack.Screen name="BatchDetail" component={BatchDetailScreen} />
+            {/* Attendance: every batch (from the menu) or one batch (from the batch page). */}
+            <RealStack.Screen name="StudentAttendance" component={StudentAttendanceScreen} />
+            {/* Fees: every batch (from the menu) or one batch's ledger (from the batch page). */}
             <RealStack.Screen name="StudentFees" component={StudentFeesScreen} />
             <RealStack.Screen name="BatchFees" component={StudentFeesScreen} />
           </RealStack.Navigator>

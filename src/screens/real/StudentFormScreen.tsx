@@ -1,7 +1,15 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, type TextInputInstance, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  type ScrollViewInstance,
+  StyleSheet,
+  type TextInputInstance,
+  View,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -24,6 +32,7 @@ import { Button } from '../../components/ui/Button';
 import { Sheet } from '../../components/ui/Sheet';
 import { useToast } from '../../components/ui/Toast';
 import { AuthField, ErrorBanner } from '../../components/auth/AuthKit';
+import { HeaderIconButton, StackHeader } from '../../components/real/StackHeader';
 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: 'female', label: 'Female' },
@@ -39,7 +48,6 @@ type Errors = Partial<Record<'relation' | 'relationOther' | 'firstName' | 'lastN
 /** Add or edit one student profile (online: the server checks the limits, then the app syncs). */
 export function StudentFormScreen() {
   const { colors, isDark } = useTheme();
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const toast = useToast();
@@ -72,11 +80,17 @@ export function StudentFormScreen() {
 
   const middleRef = useRef<TextInputInstance>(null);
   const lastRef = useRef<TextInputInstance>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
-  const title = editingId ? 'Edit student profile' : 'Add student profile';
+  // Editing needs no title (the form shows whose profile it is); adding keeps one.
+  const title = editingId ? undefined : 'Add student profile';
   const today = useMemo(() => new Date(), []);
+  const busy = save.isPending || remove.isPending;
+  // Save sits in the top bar, so bring problems into view from wherever the form is scrolled.
+  const showTop = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
 
   const submit = async () => {
+    if (busy) return;
     const e: Errors = {};
     const other = relationOther.trim();
     if (!relation) e.relation = 'Choose who is creating this profile.';
@@ -88,7 +102,10 @@ export function StudentFormScreen() {
     if (!dob) e.dob = 'Choose a date of birth.';
     setErrors(e);
     setFailure(null);
-    if (Object.keys(e).length) return;
+    if (Object.keys(e).length) {
+      showTop();
+      return;
+    }
 
     try {
       await save.mutateAsync({
@@ -109,6 +126,7 @@ export function StudentFormScreen() {
       navigation.goBack();
     } catch (err) {
       setFailure(describeProfileError(err));
+      showTop();
     }
   };
 
@@ -117,32 +135,44 @@ export function StudentFormScreen() {
     try {
       await remove.mutateAsync(editingId);
       toast.toast('Student profile removed', 'info');
-      navigation.goBack();
+      // Back to the tabs: the profile page this form may have come from is gone too.
+      navigation.popToTop();
     } catch (err) {
       setFailure(describeProfileError(err));
       setConfirmDelete(false);
+      showTop();
     }
   };
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bgApp }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* ── Top bar ─────────────────────────────────────────────────────── */}
-      <Row gap={spacing.md} style={{ paddingTop: insets.top + spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          style={({ pressed }) => [styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
-        >
-          <Ionicons name="arrow-back" size={19} color={colors.textMain} />
-        </Pressable>
-        <AppText variant="title" style={{ flex: 1 }} numberOfLines={1}>
-          {title}
-        </AppText>
-      </Row>
+      {/* ── Top bar: delete and save on the right ───────────────────────── */}
+      <StackHeader
+        title={title}
+        right={
+          <>
+            {editingId && canRemove ? (
+              <HeaderIconButton
+                icon="trash-outline"
+                label="Remove this profile"
+                danger
+                disabled={busy}
+                onPress={() => setConfirmDelete(true)}
+              />
+            ) : null}
+            <Button
+              label={editingId ? 'Save' : 'Add'}
+              iconName={editingId ? 'checkmark' : 'person-add-outline'}
+              size="sm"
+              loading={save.isPending}
+              disabled={remove.isPending}
+              onPress={submit}
+            />
+          </>
+        }
+      />
 
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxxl }} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxxl }} keyboardShouldPersistTaps="handled">
         <ErrorBanner message={failure} />
 
         {/* Created by — the account owner's relation to this student */}
@@ -297,43 +327,31 @@ export function StudentFormScreen() {
             <Chip key={b} label={b} selected={board === b} onPress={() => setBoard(board === b ? null : b)} />
           ))}
         </Row>
-
-        <Button
-          label={editingId ? 'Save changes' : 'Add student profile'}
-          iconName={editingId ? 'checkmark-circle-outline' : 'person-add-outline'}
-          size="lg"
-          fullWidth
-          loading={save.isPending}
-          onPress={submit}
-          style={{ marginTop: spacing.xxl }}
-        />
-
-        {editingId && canRemove ? (
-          confirmDelete ? (
-            <View style={{ marginTop: spacing.lg, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.errorBg }}>
-              <AppText variant="subheading" style={{ color: colors.errorText }}>
-                Remove {existing?.first_name || 'this'}'s profile?
-              </AppText>
-              <AppText variant="caption" style={{ color: colors.errorText, marginTop: 2 }}>
-                This removes the profile from your account and takes them out of their batches. It can't be undone.
-              </AppText>
-              <Row gap={spacing.sm} style={{ marginTop: spacing.md }}>
-                <Button label="Cancel" variant="secondary" size="sm" onPress={() => setConfirmDelete(false)} />
-                <Button label="Remove" variant="danger" size="sm" iconName="trash-outline" loading={remove.isPending} onPress={doDelete} />
-              </Row>
-            </View>
-          ) : (
-            <Button
-              label="Remove this profile"
-              variant="ghost"
-              iconName="trash-outline"
-              fullWidth
-              onPress={() => setConfirmDelete(true)}
-              style={{ marginTop: spacing.md }}
-            />
-          )
-        ) : null}
       </ScrollView>
+
+      {/* ── Remove: confirmed in a sheet ─────────────────────────────────── */}
+      <Sheet
+        visible={confirmDelete}
+        onClose={() => !remove.isPending && setConfirmDelete(false)}
+        title={`Remove ${existing?.first_name || 'this'}’s profile?`}
+        scroll={false}
+      >
+        <AppText variant="caption" tone="secondary">
+          This removes the profile from your account and takes them out of their batches. It can’t be undone.
+        </AppText>
+        <Row gap={spacing.sm} style={{ marginTop: spacing.lg, paddingBottom: spacing.md }}>
+          <Button label="Cancel" variant="secondary" disabled={remove.isPending} onPress={() => setConfirmDelete(false)} style={{ flex: 1 }} fullWidth />
+          <Button
+            label="Remove"
+            variant="danger"
+            iconName="trash-outline"
+            loading={remove.isPending}
+            onPress={doDelete}
+            style={{ flex: 1 }}
+            fullWidth
+          />
+        </Row>
+      </Sheet>
 
       <Sheet visible={relationOpen} onClose={() => setRelationOpen(false)} title="Created by" subtitle="Your relation to this student">
         <View style={{ gap: spacing.xs, paddingBottom: spacing.md }}>
@@ -422,14 +440,3 @@ export function StudentFormScreen() {
 function defaultStudentDob(): Date {
   return new Date(new Date().getFullYear() - 12, 0, 1);
 }
-
-const styles = StyleSheet.create({
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-});

@@ -55,6 +55,8 @@ export interface Membership {
   course_start: string | null;
   course_end: string | null;
   joined_month: string | null;
+  /** When the teacher last decided (approved) — attendance counts from that day. */
+  decided_at: number | null;
 }
 
 const CODE_RE = /^VLR-[A-Z0-9]{6}$/;
@@ -113,6 +115,7 @@ export function useMemberships(): { memberships: Membership[]; isLoading: boolea
         course_start: batch?.course_start ?? null,
         course_end: batch?.course_end ?? null,
         joined_month: e.joined_month,
+        decided_at: e.decided_at,
       });
     }
     return out.sort((a, b) => b.requested_at - a.requested_at);

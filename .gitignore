@@ -63,3 +63,5 @@ service-account*.json
 
 # local planning docs
 new-db-plan.md
+features.md
+study-st-app-pipeline.md

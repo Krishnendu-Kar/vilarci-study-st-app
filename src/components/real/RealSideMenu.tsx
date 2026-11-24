@@ -30,7 +30,7 @@ interface MenuItem {
   label: string;
   icon: IconName;
   /** Real screen to open; absent = not built yet → "Coming soon". */
-  route?: 'RealHome' | 'Account' | 'JoinBatch' | 'StudentTimetable' | 'StudentFees' | 'Honours' | 'ComingSoonList';
+  route?: 'RealHome' | 'Account' | 'JoinBatch' | 'StudentTimetable' | 'StudentAttendance' | 'StudentFees' | 'Honours' | 'ComingSoonList';
   badge?: string;
 }
 
@@ -51,7 +51,7 @@ const SECTIONS: { title: string; items: MenuItem[] }[] = [
     title: 'ACADEMICS',
     items: [
       { label: 'Timetable', icon: 'calendar-outline', route: 'StudentTimetable' },
-      { label: 'Attendance', icon: 'checkmark-done-outline' },
+      { label: 'Attendance', icon: 'checkmark-done-outline', route: 'StudentAttendance' },
       { label: 'Syllabus', icon: 'book-outline' },
       { label: 'Tests & Results', icon: 'document-text-outline' },
       { label: 'Marksheets', icon: 'ribbon-outline' },

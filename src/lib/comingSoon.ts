@@ -12,7 +12,6 @@ export const COMING_SOON: { title: string; items: SoonFeature[] }[] = [
   {
     title: 'ACADEMICS',
     items: [
-      { title: 'Attendance', icon: 'checkmark-done-outline', description: 'Month-by-month attendance and a date-by-date register for every batch.' },
       { title: 'Syllabus', icon: 'book-outline', description: 'Chapter progress, grouped the way the teacher plans it.' },
       { title: 'Tests & Results', icon: 'document-text-outline', description: 'Test scores, subject mastery and weak topics to work on.' },
       { title: 'Marksheets', icon: 'ribbon-outline', description: 'Marksheets and certificates issued by teachers, each with a verify code.' },
