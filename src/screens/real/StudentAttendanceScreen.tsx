@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -6,9 +6,10 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { radius, spacing } from '../../theme/tokens';
 import { Membership, useMemberships } from '../../lib/api/batches';
 import { useStudentAttendance } from '../../lib/api/attendance';
+import type { BatchMonth, EnrolmentMonth } from '../../lib/local/types';
 import { useRefresh } from '../../lib/sync/useRefresh';
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
-import { addMonths, monthLabel } from '../../lib/utils/months';
+import { addMonths, monthLabel, monthsBetween } from '../../lib/utils/months';
 import {
   classDaysOfMonth,
   localToday,
@@ -19,11 +20,13 @@ import {
   monthOf,
   percentLabel,
   prettyTime,
+  Tally,
   tally,
   weekdayShort,
 } from '../../lib/utils/attendance';
 import { AppText, Card, EmptyState, HeroCard, Pill, PillTone, Row, SectionHeader } from '../../components/ui/base';
 import { Button } from '../../components/ui/Button';
+import { Pager } from '../../components/ui/Pager';
 import { Screen } from '../../components/ui/Screen';
 import { RealTopBar } from '../../components/real/RealTopBar';
 
@@ -31,7 +34,8 @@ const MARK_TONE: Record<Mark, PillTone> = { P: 'success', L: 'gold', A: 'error' 
 
 /**
  * The active student's attendance. From a batch (or with one batch) it shows
- * that batch; from the menu with several, a card per batch.
+ * that batch, one month per page (swipe; the months on each side are built
+ * ahead); from the menu with several batches, a card per batch.
  */
 export function StudentAttendanceScreen() {
   const { colors } = useTheme();
@@ -44,7 +48,7 @@ export function StudentAttendanceScreen() {
   const joined = memberships.filter(
     (m) => m.student_id === active?.id && m.status === 'approved' && (!onlyId || m.id === onlyId),
   );
-  const single = joined.length === 1 ? joined[0] : null;
+  const single = active && !isLoading && joined.length === 1 ? joined[0] : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
@@ -52,36 +56,39 @@ export function StudentAttendanceScreen() {
         title="Attendance"
         subtitle={single ? single.batch_name : active ? `${active.first_name}'s batches` : undefined}
       />
-      <Screen refreshing={refreshing} onRefresh={refresh}>
-        {!active ? (
-          <EmptyState icon="people-outline" title="Add a student first" message="Attendance is kept per student profile." />
-        ) : isLoading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
-        ) : !joined.length ? (
-          <View>
-            <EmptyState
-              icon="checkmark-done-outline"
-              title={`No attendance for ${active.first_name} yet`}
-              message="It shows here once a teacher accepts the join request and starts marking classes."
-            />
-            <Button
-              label="Join a batch"
-              iconName="enter-outline"
-              fullWidth
-              onPress={() => navigation.navigate('JoinBatch', { studentId: active.id })}
-              style={{ marginTop: spacing.md }}
-            />
-          </View>
-        ) : single ? (
-          <BatchAttendance m={single} />
-        ) : (
-          <View style={{ gap: spacing.md }}>
-            {joined.map((m) => (
-              <BatchSummaryCard key={m.id} m={m} onPress={() => navigation.push('StudentAttendance', { membershipId: m.id })} />
-            ))}
-          </View>
-        )}
-      </Screen>
+      {single ? (
+        // Each month is its own page (with its own pull-to-refresh).
+        <BatchAttendance m={single} />
+      ) : (
+        <Screen refreshing={refreshing} onRefresh={refresh}>
+          {!active ? (
+            <EmptyState icon="people-outline" title="Add a student first" message="Attendance is kept per student profile." />
+          ) : isLoading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
+          ) : !joined.length ? (
+            <View>
+              <EmptyState
+                icon="checkmark-done-outline"
+                title={`No attendance for ${active.first_name} yet`}
+                message="It shows here once a teacher accepts the join request and starts marking classes."
+              />
+              <Button
+                label="Join a batch"
+                iconName="enter-outline"
+                fullWidth
+                onPress={() => navigation.navigate('JoinBatch', { studentId: active.id })}
+                style={{ marginTop: spacing.md }}
+              />
+            </View>
+          ) : (
+            <View style={{ gap: spacing.md }}>
+              {joined.map((m) => (
+                <BatchSummaryCard key={m.id} m={m} onPress={() => navigation.push('StudentAttendance', { membershipId: m.id })} />
+              ))}
+            </View>
+          )}
+        </Screen>
+      )}
     </View>
   );
 }
@@ -115,24 +122,80 @@ function BatchSummaryCard({ m, onPress }: { m: Membership; onPress: () => void }
   );
 }
 
-/** Overall numbers, then the month's class days with the student's mark on each. */
+/** One batch, a month per page: from the month the student joined to this month. */
 function BatchAttendance({ m }: { m: Membership }) {
-  const { colors } = useTheme();
   const { overall, start, batchMonths, months } = useStudentAttendance(m);
   const today = localToday();
   const thisMonth = monthOf(today);
   const first = start ? monthOf(start) : thisMonth;
   const [month, setMonth] = useState(thisMonth);
+  const pages = useMemo(() => monthsBetween(first <= thisMonth ? first : thisMonth, thisMonth), [first, thisMonth]);
+
+  return (
+    <Pager
+      pages={pages}
+      current={month}
+      onChange={setMonth}
+      preload={2}
+      renderPage={(mo) => (
+        <MonthPage
+          m={m}
+          month={mo}
+          first={pages[0]}
+          last={thisMonth}
+          today={today}
+          start={start}
+          overall={overall}
+          batchMonths={batchMonths}
+          months={months}
+          onMonth={setMonth}
+        />
+      )}
+    />
+  );
+}
+
+/** Overall numbers, then one month's class days with the student's mark on each. */
+function MonthPage({
+  m,
+  month,
+  first,
+  last,
+  today,
+  start,
+  overall,
+  batchMonths,
+  months,
+  onMonth,
+}: {
+  m: Membership;
+  month: string;
+  first: string;
+  last: string;
+  today: string;
+  start: string | null;
+  overall: Tally;
+  batchMonths: Record<string, BatchMonth>;
+  months: Record<string, EnrolmentMonth>;
+  onMonth: (month: string) => void;
+}) {
+  const { colors } = useTheme();
+  const { refreshing, refresh } = useRefresh();
 
   // Only days the teacher recorded, from the day the student joined: held up to today, and cancellations (even ahead, so parents know).
-  const days = classDaysOfMonth(month, m.weekly_schedule, batchMonths[month], today, { start: m.course_start, end: m.course_end }).filter(
-    (d) => start && d.date >= start && ((d.state === 'held' && d.date <= today) || d.state === 'cancelled'),
+  const days = useMemo(
+    () =>
+      classDaysOfMonth(month, m.weekly_schedule, batchMonths[month], today, { start: m.course_start, end: m.course_end }).filter(
+        (d) => start && d.date >= start && ((d.state === 'held' && d.date <= today) || d.state === 'cancelled'),
+      ),
+    [month, m.weekly_schedule, m.course_start, m.course_end, batchMonths, today, start],
   );
   const monthTally = tally(batchMonths, months, start, today, month);
   const low = overall.percent != null && overall.percent < LOW_ATTENDANCE;
+  const remark = months[month]?.remark?.trim();
 
   return (
-    <>
+    <Screen refreshing={refreshing} onRefresh={refresh}>
       <HeroCard>
         <AppText variant="overline" numberOfLines={1} style={{ color: colors.goldBright }}>
           {m.batch_name.toUpperCase()}
@@ -164,7 +227,7 @@ function BatchAttendance({ m }: { m: Membership }) {
 
       {/* ── Month ─────────────────────────────────────────────────────── */}
       <View style={[styles.stepper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Step icon="chevron-back" label="Previous month" disabled={month <= first} onPress={() => setMonth(addMonths(month, -1))} />
+        <Step icon="chevron-back" label="Previous month" disabled={month <= first} onPress={() => onMonth(addMonths(month, -1))} />
         <View style={{ flex: 1, alignItems: 'center' }}>
           <AppText variant="subheading">{monthLabel(month)}</AppText>
           <AppText variant="caption" tone="muted">
@@ -173,14 +236,26 @@ function BatchAttendance({ m }: { m: Membership }) {
               : 'No classes held'}
           </AppText>
         </View>
-        <Step icon="chevron-forward" label="Next month" disabled={month >= thisMonth} onPress={() => setMonth(addMonths(month, 1))} />
+        <Step icon="chevron-forward" label="Next month" disabled={month >= last} onPress={() => onMonth(addMonths(month, 1))} />
       </View>
 
+      {/* ── The teacher's remark for this month ─────────────────────────── */}
+      {remark ? (
+        <Card style={{ marginTop: spacing.lg }} accentColor={colors.primary}>
+          <Row gap={spacing.sm}>
+            <Ionicons name="chatbox-ellipses-outline" size={16} color={colors.primary} />
+            <AppText variant="overline" tone="primary">
+              FROM THE TEACHER · {monthLabel(month).toUpperCase()}
+            </AppText>
+          </Row>
+          <AppText variant="body" selectable style={{ marginTop: spacing.sm }}>
+            {remark}
+          </AppText>
+        </Card>
+      ) : null}
+
       <View style={{ marginTop: spacing.lg }}>
-        <SectionHeader
-          title="Class days"
-          subtitle={monthTally.held ? `Absent ${monthTally.absent} · Late ${monthTally.late}` : undefined}
-        />
+        <SectionHeader title="Class days" subtitle={monthTally.held ? `Absent ${monthTally.absent} · Late ${monthTally.late}` : undefined} />
         {days.length ? (
           <Card padded={false}>
             {days.map((d, i) => {
@@ -211,11 +286,7 @@ function BatchAttendance({ m }: { m: Membership }) {
                       </AppText>
                     ) : null}
                   </View>
-                  {mark ? (
-                    <Pill label={MARK_LABEL[mark]} tone={MARK_TONE[mark]} />
-                  ) : (
-                    <Pill label="Cancelled" tone="neutral" />
-                  )}
+                  {mark ? <Pill label={MARK_LABEL[mark]} tone={MARK_TONE[mark]} /> : <Pill label="Cancelled" tone="neutral" />}
                 </Row>
               );
             })}
@@ -223,15 +294,15 @@ function BatchAttendance({ m }: { m: Membership }) {
         ) : (
           <Card muted>
             <AppText variant="caption" tone="muted">
-              {month === thisMonth ? 'No classes marked this month yet.' : 'No classes were held this month.'}
+              {month === last ? 'No classes marked this month yet.' : 'No classes were held this month.'}
             </AppText>
           </Card>
         )}
         <AppText variant="caption" tone="muted" style={{ marginTop: spacing.sm }}>
-          The teacher marks attendance after each class. Late counts as present.
+          The teacher marks attendance after each class. Late counts as present. Swipe left or right to change month.
         </AppText>
       </View>
-    </>
+    </Screen>
   );
 }
 

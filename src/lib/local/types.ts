@@ -145,7 +145,9 @@ export interface BatchTest {
   subject: string | null;
   held_on: string;
   max_marks: number;
+  /** Worked out on the teacher's phone (utils/tests TestSummary): count, average, highest… */
   summary: Record<string, unknown> | null;
+  created_at?: number;
   deleted_at: number | null;
   seq: number;
 }

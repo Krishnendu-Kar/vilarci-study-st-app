@@ -7,7 +7,8 @@ import { radius, spacing } from '../../theme/tokens';
 import { describeLeaveError, joinLinkFor, useLeaveBatch, useMemberships } from '../../lib/api/batches';
 import { useStudentNotices } from '../../lib/api/notices';
 import { buildLedger, useEnrolmentMonths } from '../../lib/api/batchFees';
-import { useStudentAttendance } from '../../lib/api/attendance';
+import { latestRemark, useStudentAttendance } from '../../lib/api/attendance';
+import { useStudentTests } from '../../lib/api/tests';
 import { LOW_ATTENDANCE, percentLabel } from '../../lib/utils/attendance';
 import { useLocalStore } from '../../lib/local/store';
 import { useRefresh } from '../../lib/sync/useRefresh';
@@ -41,7 +42,9 @@ export function BatchDetailScreen() {
   // Notices screen is opened (from the 📣 icon or "See all"), not here.
   const { items: notices } = useStudentNotices(m?.batch_id ?? '-');
   const newNotices = notices.filter((n) => n.isNew).length;
-  const { overall } = useStudentAttendance(m);
+  const { overall, months: studentMonths } = useStudentAttendance(m);
+  const remark = latestRemark(studentMonths);
+  const results = useStudentTests(m);
   const toast = useToast();
   const leave = useLeaveBatch();
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -124,6 +127,27 @@ export function BatchDetailScreen() {
           </View>
         </HeroCard>
 
+        {/* ── The teacher's latest remark ────────────────────────────── */}
+        {remark ? (
+          <Pressable
+            onPress={() => navigation.navigate('StudentAttendance', { membershipId: m.id })}
+            accessibilityRole="button"
+            style={({ pressed }) => ({ marginTop: spacing.lg, opacity: pressed ? 0.85 : 1 })}
+          >
+            <Card accentColor={colors.primary}>
+              <Row gap={spacing.sm}>
+                <Ionicons name="chatbox-ellipses-outline" size={16} color={colors.primary} />
+                <AppText variant="overline" tone="primary" style={{ flex: 1 }}>
+                  FROM THE TEACHER · {monthLabel(remark.month).toUpperCase()}
+                </AppText>
+              </Row>
+              <AppText variant="body" numberOfLines={4} style={{ marginTop: spacing.sm }}>
+                {remark.text}
+              </AppText>
+            </Card>
+          </Pressable>
+        ) : null}
+
         {/* ── Sections ───────────────────────────────────────────────── */}
         <View style={styles.grid}>
           <Tile
@@ -140,7 +164,12 @@ export function BatchDetailScreen() {
             lineTone={overall.percent != null && overall.percent < LOW_ATTENDANCE ? 'error' : 'muted'}
             onPress={() => navigation.navigate('StudentAttendance', { membershipId: m.id })}
           />
-          <Tile icon="document-text-outline" title="Tests & Results" soon onPress={soon('Tests & Results', 'document-text-outline')} />
+          <Tile
+            icon="document-text-outline"
+            title="Tests & Results"
+            line={results.average != null ? `Avg ${results.average}% · ${results.marked} test${results.marked === 1 ? '' : 's'}` : results.results.length ? 'Not marked yet' : 'No tests yet'}
+            onPress={() => navigation.navigate('StudentTests', { membershipId: m.id })}
+          />
           <Tile icon="book-outline" title="Syllabus" soon onPress={soon('Syllabus', 'book-outline')} />
         </View>
 
@@ -259,6 +288,12 @@ export function BatchDetailScreen() {
             title="Attendance"
             subtitle={overall.held ? `${percentLabel(overall.percent)} so far` : 'No classes marked yet'}
             onPress={fromMenu(() => navigation.navigate('StudentAttendance', { membershipId: m.id }))}
+          />
+          <MenuRow
+            icon="document-text-outline"
+            title="Tests & Results"
+            subtitle={results.average != null ? `Average ${results.average}%` : 'No marks yet'}
+            onPress={fromMenu(() => navigation.navigate('StudentTests', { membershipId: m.id }))}
           />
           <MenuRow
             icon="wallet-outline"

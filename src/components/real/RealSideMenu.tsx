@@ -38,6 +38,7 @@ interface MenuItem {
     | 'StudentNotices'
     | 'StudentTimetable'
     | 'StudentAttendance'
+    | 'StudentTests'
     | 'StudentFees'
     | 'Honours'
     | 'ComingSoonList';
@@ -64,7 +65,7 @@ const SECTIONS: { title: string; items: MenuItem[] }[] = [
       { label: 'Timetable', icon: 'calendar-outline', route: 'StudentTimetable' },
       { label: 'Attendance', icon: 'checkmark-done-outline', route: 'StudentAttendance' },
       { label: 'Syllabus', icon: 'book-outline' },
-      { label: 'Tests & Results', icon: 'document-text-outline' },
+      { label: 'Tests & Results', icon: 'document-text-outline', route: 'StudentTests' },
       { label: 'Marksheets', icon: 'ribbon-outline' },
     ],
   },

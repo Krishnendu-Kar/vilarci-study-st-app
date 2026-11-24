@@ -22,6 +22,15 @@ export interface StudentAttendance {
   months: Record<string, EnrolmentMonth>;
 }
 
+/** The teacher's most recent monthly remark for this student, or null. */
+export function latestRemark(months: Record<string, EnrolmentMonth>): { month: string; text: string } | null {
+  const month = Object.keys(months)
+    .filter((k) => months[k]?.remark?.trim())
+    .sort()
+    .pop();
+  return month ? { month, text: months[month].remark!.trim() } : null;
+}
+
 /** One membership's attendance (empty for requests that were never approved). */
 export function useStudentAttendance(m: Membership | undefined): StudentAttendance {
   const batchMonths = useLocalStore((s) => (m ? s.batchMonths[m.batch_id] ?? NO_BATCH_MONTHS : NO_BATCH_MONTHS));
