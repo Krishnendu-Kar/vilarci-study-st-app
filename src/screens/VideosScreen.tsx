@@ -108,7 +108,7 @@ export function VideosScreen() {
 
         <Card style={{ marginTop: spacing.xl }} muted>
           <AppText variant="caption" tone="muted">
-            Lessons stream from the teacher's own channel. Playback needs an internet connection and does not
+            Lessons stream from the teacher’s own channel. Playback needs an internet connection and does not
             count towards learning points — revision logging and practice sets do.
           </AppText>
         </Card>

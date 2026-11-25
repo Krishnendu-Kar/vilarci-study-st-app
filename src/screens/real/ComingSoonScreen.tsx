@@ -52,7 +52,7 @@ export function ComingSoonScreen() {
           {title}
         </AppText>
         <AppText variant="body" tone="secondary" center style={{ marginTop: spacing.sm, maxWidth: 320 }}>
-          We're connecting this to your real account next. You can already see how it will work in the demo.
+          We’re connecting this to your real account next. You can already see how it will work in the demo.
         </AppText>
 
         <Button

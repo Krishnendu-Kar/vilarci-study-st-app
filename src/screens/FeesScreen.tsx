@@ -239,7 +239,7 @@ function InvoiceSheet({ invoice, onClose }: { invoice: FeeInvoice | null; onClos
         <AppText variant="captionStrong">How fees work on Vilarci</AppText>
         <AppText variant="caption" tone="muted" style={{ marginTop: 4 }}>
           Vilarci Study is an academic record keeper. Payments are made directly to your coaching centre or
-          private tutor, who then records them against the month. The reference number above is the centre's
+          private tutor, who then records them against the month. The reference number above is the centre’s
           own entry — Vilarci does not process payments or issue legal fee receipts.
         </AppText>
       </Card>

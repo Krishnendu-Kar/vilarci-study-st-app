@@ -39,6 +39,22 @@ export interface StudentProfile {
   relation_other: string | null;
 }
 
+/** private = a teacher's own batch; an institute has sections (students join) and their subjects. */
+export type BatchKind = 'private' | 'section' | 'subject';
+
+/** What families see of a coaching institute (carried on its sections and subjects). */
+export interface InstituteCard {
+  id: string;
+  name: string;
+  tagline: string;
+  logo_text: string;
+  theme_color: string;
+  address: string;
+  phone: string;
+  email: string;
+  established: number | null;
+}
+
 /** How a batch shows on a request that isn't approved. */
 export interface BatchCard {
   name: string;
@@ -46,6 +62,9 @@ export interface BatchCard {
   grade: string | null;
   board: string | null;
   teacher_name: string | null;
+  /** Missing on snapshots from before institutes (= private). */
+  kind?: BatchKind;
+  institute?: InstituteCard | null;
 }
 
 /** One of this account's students in one batch. */
@@ -61,6 +80,11 @@ export interface AccountEnrolment {
   batch_deleted: boolean;
   /** Only for requests that aren't approved; approved ones come as batch rows. */
   batch: BatchCard | null;
+  /** Missing on snapshots from before institutes (= private). */
+  kind?: BatchKind;
+  /** A subject's section. */
+  parent_id?: string | null;
+  institute_id?: string | null;
 }
 
 export interface AccountSnapshot {
@@ -96,6 +120,12 @@ export interface Batch {
   /** Sent to families with an approved student since 2026-11-24 (to invite friends); older copies lack it until the next sync. */
   join_code?: string;
   teacher_card: TeacherCard;
+  /** Missing on rows downloaded before institutes (= private). */
+  kind?: BatchKind;
+  institute_id?: string | null;
+  /** A subject's section. */
+  parent_id?: string | null;
+  institute_card?: InstituteCard | null;
   seq: number;
   created_at: number;
   updated_at: number;

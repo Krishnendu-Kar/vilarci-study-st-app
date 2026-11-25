@@ -25,7 +25,8 @@ export function StudentTestsScreen() {
   const { refreshing, refresh } = useRefresh();
 
   const joined = memberships.filter(
-    (m) => m.student_id === active?.id && m.status === 'approved' && (!onlyId || m.id === onlyId),
+    // Tests are set in batches and institute subjects (a section has none of its own).
+    (m) => m.student_id === active?.id && m.status === 'approved' && m.kind !== 'section' && (!onlyId || m.id === onlyId),
   );
   const single = joined.length === 1 ? joined[0] : null;
 

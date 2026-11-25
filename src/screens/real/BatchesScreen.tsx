@@ -15,7 +15,7 @@ import {
 import { useRefresh } from '../../lib/sync/useRefresh';
 import { useActiveStudent } from '../../lib/store/useActiveStudent';
 import { money } from '../../lib/utils/format';
-import { AppText, Card, EmptyState, Pill, Row, SectionHeader } from '../../components/ui/base';
+import { AppText, Card, CenterMark, EmptyState, Pill, Row, SectionHeader } from '../../components/ui/base';
 import { Button } from '../../components/ui/Button';
 import { Screen } from '../../components/ui/Screen';
 import { ConfirmSheet } from '../../components/ui/ConfirmSheet';
@@ -41,7 +41,10 @@ export function BatchesScreen() {
   const leave = useLeaveBatch();
   const [cancelling, setCancelling] = useState<Membership | null>(null);
 
-  const mine = memberships.filter((m) => m.student_id === active?.id);
+  // Subjects show inside their section, not as batches of their own.
+  const mine = memberships.filter((m) => m.student_id === active?.id && m.kind !== 'subject');
+  const subjectCount = (m: Membership) =>
+    memberships.filter((x) => x.kind === 'subject' && x.parent_id === m.batch_id && x.student_id === m.student_id && x.status === 'approved').length;
   const join = () => navigation.navigate('JoinBatch', active ? { studentId: active.id } : undefined);
 
   const cancelRequest = async (m: Membership) => {
@@ -66,7 +69,7 @@ export function BatchesScreen() {
             <EmptyState
               icon="people-outline"
               title={`${active.first_name} hasn’t joined a batch yet`}
-              message="Got a join link or code from a teacher — tuition, music, art, yoga or anything else? Open the link, or enter the code."
+              message="Got a join link or code from a teacher or a coaching institute — tuition, music, art, yoga or anything else? Open the link, or enter the code."
             />
             <Button label={`Join a batch for ${active.first_name}`} iconName="enter-outline" fullWidth onPress={join} />
           </View>
@@ -84,6 +87,7 @@ export function BatchesScreen() {
                       <MembershipCard
                         key={m.id}
                         m={m}
+                        subjects={subjectCount(m)}
                         onPress={m.status === 'approved' ? () => navigation.navigate('BatchDetail', { membershipId: m.id }) : undefined}
                         onCancel={m.status === 'pending' ? () => setCancelling(m) : undefined}
                       />
@@ -113,27 +117,34 @@ export function BatchesScreen() {
   );
 }
 
-function MembershipCard({ m, onPress, onCancel }: { m: Membership; onPress?: () => void; onCancel?: () => void }) {
+function MembershipCard({ m, subjects, onPress, onCancel }: { m: Membership; subjects: number; onPress?: () => void; onCancel?: () => void }) {
   const { colors } = useTheme();
+  const section = m.kind === 'section';
   const tone = m.status === 'approved' ? 'success' : m.status === 'pending' ? 'gold' : m.status === 'declined' ? 'error' : 'neutral';
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
       <Card>
         <Row justify="space-between" align="flex-start" gap={spacing.md}>
+          {section && m.institute ? <CenterMark text={m.institute.logo_text} color={m.institute.theme_color} size={40} /> : null}
           <View style={{ flex: 1 }}>
             <AppText variant="subheading" numberOfLines={1}>
               {m.batch_name}
             </AppText>
             <AppText variant="caption" tone="muted" numberOfLines={1}>
-              {[m.subject, m.grade, m.board].filter(Boolean).join(' · ')}
+              {(section ? [m.institute?.name, m.grade, m.board] : [m.subject, m.grade, m.board]).filter(Boolean).join(' · ')}
             </AppText>
           </View>
           <Pill label={STATUS_LABEL[m.status]} tone={tone} />
         </Row>
         <Row gap={6} style={{ marginTop: spacing.sm }}>
-          <Ionicons name="person-circle-outline" size={14} color={colors.textMuted} />
+          <Ionicons name={section ? 'library-outline' : 'person-circle-outline'} size={14} color={colors.textMuted} />
           <AppText variant="caption" tone="secondary" style={{ flex: 1 }} numberOfLines={1}>
-            {[m.teacher_name, m.monthly_fee != null ? `${money(m.monthly_fee)}/month` : null].filter(Boolean).join(' · ')}
+            {[
+              section ? (subjects ? `${subjects} subject${subjects === 1 ? '' : 's'}` : 'Coaching institute') : m.teacher_name,
+              m.monthly_fee != null ? `${money(m.monthly_fee)}/month` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </AppText>
           {onPress ? (
             <Row gap={2}>

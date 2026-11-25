@@ -40,27 +40,30 @@ export function StudentBatchInfoScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>
-      <RealTopBar title="Batch info" subtitle={m.batch_name} />
+      <RealTopBar title={m.kind === 'section' ? 'Section info' : m.kind === 'subject' ? 'Subject info' : 'Batch info'} subtitle={m.batch_name} />
       <Screen>
         <AppText variant="title">{m.batch_name}</AppText>
         <Row gap={5} wrap style={{ marginTop: spacing.sm }}>
-          <Pill label={m.subject} tone="primary" />
+          {m.kind === 'section' ? null : <Pill label={m.subject} tone="primary" />}
+          {m.institute ? <Pill label={m.institute.name} tone="gold" /> : null}
           {level ? <Pill label={level} /> : null}
         </Row>
 
         <Card style={{ marginTop: spacing.lg }}>
-          <KeyValue label="Teacher" value={m.teacher_name || '—'} />
-          <KeyValue label="Monthly fee" value={m.monthly_fee != null ? `${money(m.monthly_fee)} / month` : '—'} />
+          {m.kind === 'section' ? null : <KeyValue label="Teacher" value={m.teacher_name || '—'} />}
+          {m.kind === 'subject' ? null : (
+            <KeyValue label="Monthly fee" value={m.monthly_fee != null ? `${money(m.monthly_fee)} / month` : '—'} />
+          )}
           <KeyValue label="Course" value={courseLabel(m.course_start, m.course_end) ?? 'Not set yet'} />
           <KeyValue label="Room / venue" value={m.room || '—'} />
-          <KeyValue label="Join code" value={m.join_code ?? '—'} />
+          {m.kind === 'subject' ? null : <KeyValue label="Join code" value={m.join_code ?? '—'} />}
           <Divider style={{ marginVertical: spacing.sm }} />
           <KeyValue label="Student" value={m.student_name} />
           <KeyValue label="Joined" value={m.joined_month ? monthLabel(m.joined_month) : '—'} />
           <KeyValue label="Attendance counts from" value={start ? classDateLabel(start, true) : '—'} />
         </Card>
 
-        <View style={{ marginTop: spacing.xxl }}>
+        <View style={{ marginTop: spacing.xxl, display: m.kind === 'section' ? 'none' : 'flex' }}>
           <SectionHeader title="Weekly timetable" />
           <Card padded={false}>
             {DAY_KEYS.map((d, i) => {

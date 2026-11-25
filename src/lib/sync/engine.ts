@@ -60,7 +60,8 @@ export function requestSync(opts: { ifOlderThanMs?: number } = {}): Promise<void
         await syncOnce();
       } while (again);
       failures = 0;
-      useLocalStore.setState({ syncError: null });
+      // With no copy open nothing synced: keep the reason it couldn't open on show.
+      if (currentDb()) useLocalStore.setState({ syncError: null });
     } catch (err) {
       failures += 1;
       useLocalStore.setState({ syncError: describeSyncError(err) });

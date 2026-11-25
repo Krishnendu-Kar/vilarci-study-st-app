@@ -30,7 +30,8 @@ export function StudentFeesScreen() {
   const onlyId: string | undefined = useRoute<any>().params?.membershipId;
 
   const joined = memberships.filter(
-    (m) => m.student_id === active?.id && m.status === 'approved' && (!onlyId || m.id === onlyId),
+    // Fees are paid on batches and institute sections (not on a section's subjects).
+    (m) => m.student_id === active?.id && m.status === 'approved' && m.kind !== 'subject' && (!onlyId || m.id === onlyId),
   );
   const ledgers = joined.map((m) => ({
     m,

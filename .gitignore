@@ -65,3 +65,6 @@ service-account*.json
 new-db-plan.md
 features.md
 study-st-app-pipeline.md
+
+# database migrations and SQL tests (kept on this computer only; the live schema is in Supabase)
+supabase/

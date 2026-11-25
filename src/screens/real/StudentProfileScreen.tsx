@@ -44,7 +44,9 @@ export function StudentProfileScreen() {
 
   const age = ageFrom(student.dob);
   const summary = [student.class_name, student.board, age !== null ? `${age} yrs` : null].filter(Boolean).join(' · ');
-  const batches = memberships.filter((m) => m.student_id === student.id && (m.status === 'approved' || m.status === 'pending'));
+  const batches = memberships.filter(
+    (m) => m.student_id === student.id && m.kind !== 'subject' && (m.status === 'approved' || m.status === 'pending'),
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgApp }}>

@@ -40,8 +40,9 @@ export function RealHomeScreen() {
 
   const accountFirst = profile?.first_name || accountName(profile, session).split(' ')[0];
   const mine = memberships.filter((m) => m.student_id === active?.id);
-  const joined = mine.filter((m) => m.status === 'approved').length;
-  const waiting = mine.filter((m) => m.status === 'pending').length;
+  // Counted like the Batches tab: a section counts once, its subjects don't.
+  const joined = mine.filter((m) => m.status === 'approved' && m.kind !== 'subject').length;
+  const waiting = mine.filter((m) => m.status === 'pending' && m.kind !== 'subject').length;
   const age = active ? ageFrom(active.dob) : null;
   const details = active ? [active.class_name, active.board, age !== null ? `${age} yrs` : null].filter(Boolean).join(' · ') : '';
 

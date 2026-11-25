@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, spacing } from '../../theme/tokens';
-import { describeLeaveError, joinLinkFor, useLeaveBatch, useMemberships } from '../../lib/api/batches';
+import { describeLeaveError, joinLinkFor, subjectsOf, useLeaveBatch, useMemberships } from '../../lib/api/batches';
 import { useStudentNotices } from '../../lib/api/notices';
 import { buildLedger, useEnrolmentMonths } from '../../lib/api/batchFees';
 import { latestRemark, useStudentAttendance } from '../../lib/api/attendance';
@@ -15,7 +15,7 @@ import { useRefresh } from '../../lib/sync/useRefresh';
 import { courseLabel, monthLabel } from '../../lib/utils/months';
 import { money } from '../../lib/utils/format';
 import { DAY_KEYS, DAY_NAMES, todayKey } from '../../lib/utils/timetable';
-import { AppText, Card, Divider, EmptyState, HeroCard, IconBubble, IconName, Pill, Row, SectionHeader } from '../../components/ui/base';
+import { AppText, Card, CenterMark, Divider, EmptyState, HeroCard, IconBubble, IconName, Pill, Row, SectionHeader } from '../../components/ui/base';
 import { Screen } from '../../components/ui/Screen';
 import { ConfirmSheet } from '../../components/ui/ConfirmSheet';
 import { Sheet } from '../../components/ui/Sheet';
@@ -24,9 +24,11 @@ import { HeaderIconButton, StackHeader } from '../../components/real/StackHeader
 import { NoticeCard } from '../../components/real/NoticeCard';
 
 /**
- * One batch the student has joined: what it is, its sections (Fees and
- * Attendance live, the rest coming soon), the week's classes, notices and the teacher. Everything
- * comes from the phone's copy.
+ * One batch the student has joined: what it is, its tiles (Fees, Attendance,
+ * Tests…), the week's classes, notices and the teacher. Everything comes from
+ * the phone's copy. A coaching institute's section shows its subjects (each
+ * opens like a batch), fees and the combined timetable; a subject shows its
+ * classes, attendance and tests (fees and leaving belong to the section).
  */
 export function BatchDetailScreen() {
   const { colors } = useTheme();
@@ -37,6 +39,11 @@ export function BatchDetailScreen() {
   const { refreshing, refresh } = useRefresh();
 
   const m = memberships.find((x) => x.id === membershipId);
+  const isSection = m?.kind === 'section';
+  const isSubject = m?.kind === 'subject';
+  const subjects = m && isSection ? subjectsOf(memberships, m).filter((x) => x.status === 'approved') : [];
+  const section = m && isSubject ? memberships.find((x) => x.batch_id === m.parent_id && x.student_id === m.student_id) : undefined;
+  const noun = isSection ? 'section' : isSubject ? 'subject' : 'batch';
   const batch = useLocalStore((s) => (m ? s.batches[m.batch_id] : undefined));
   // The active student's notices for this batch. They count as seen once the
   // Notices screen is opened (from the 📣 icon or "See all"), not here.
@@ -81,7 +88,9 @@ export function BatchDetailScreen() {
     if (!m.join_code) return;
     Share.share({
       message:
-        `Join ${m.batch_name} (${m.subject})${m.teacher_name ? ` with ${m.teacher_name}` : ''} on Vilarci Study.\n\n` +
+        (isSection
+          ? `Join ${m.batch_name}${m.institute ? ` at ${m.institute.name}` : ''} on Vilarci Study.\n\n`
+          : `Join ${m.batch_name} (${m.subject})${m.teacher_name ? ` with ${m.teacher_name}` : ''} on Vilarci Study.\n\n`) +
         `Tap to join: ${joinLinkFor(m.join_code)}\nJoin code: ${m.join_code}`,
     }).catch(() => {});
   };
@@ -110,8 +119,11 @@ export function BatchDetailScreen() {
       <Screen refreshing={refreshing} onRefresh={refresh}>
         {/* ── What this batch is ─────────────────────────────────────── */}
         <HeroCard>
-          <AppText variant="overline" style={{ color: colors.goldBright }}>
-            {[m.subject, m.grade, m.board].filter(Boolean).join(' · ').toUpperCase()}
+          <AppText variant="overline" style={{ color: colors.goldBright }} numberOfLines={1}>
+            {(isSection ? [m.institute?.name, m.grade, m.board] : isSubject ? [m.subject, m.institute?.name] : [m.subject, m.grade, m.board])
+              .filter(Boolean)
+              .join(' · ')
+              .toUpperCase()}
           </AppText>
           <AppText variant="display" numberOfLines={2} style={{ color: '#FDFBF9', marginTop: 2 }}>
             {m.batch_name}
@@ -121,7 +133,11 @@ export function BatchDetailScreen() {
               icon="person-outline"
               text={m.joined_month ? `${m.student_name} · joined ${monthLabel(m.joined_month)}` : m.student_name}
             />
-            {m.teacher_name ? <HeroLine icon="school-outline" text={`Teacher · ${m.teacher_name}`} /> : null}
+            {isSection ? (
+              <HeroLine icon="library-outline" text={subjects.length ? subjects.map((x) => x.subject).join(' · ') : 'Subjects not added yet'} />
+            ) : m.teacher_name ? (
+              <HeroLine icon="school-outline" text={`Teacher · ${m.teacher_name}`} />
+            ) : null}
             {course ? <HeroLine icon="calendar-outline" text={course} /> : null}
             {m.room ? <HeroLine icon="location-outline" text={m.room} /> : null}
           </View>
@@ -150,36 +166,93 @@ export function BatchDetailScreen() {
 
         {/* ── Sections ───────────────────────────────────────────────── */}
         <View style={styles.grid}>
-          <Tile
-            icon="wallet-outline"
-            title="Fees"
-            line={feeLine}
-            lineTone={ledger?.dueAmount ? 'error' : 'muted'}
-            onPress={() => navigation.navigate('BatchFees', { membershipId: m.id })}
-          />
-          <Tile
-            icon="checkmark-done-outline"
-            title="Attendance"
-            line={overall.held ? `${percentLabel(overall.percent)} · ${overall.held} class${overall.held === 1 ? '' : 'es'}` : 'No classes yet'}
-            lineTone={overall.percent != null && overall.percent < LOW_ATTENDANCE ? 'error' : 'muted'}
-            onPress={() => navigation.navigate('StudentAttendance', { membershipId: m.id })}
-          />
-          <Tile
-            icon="document-text-outline"
-            title="Tests & Results"
-            line={results.average != null ? `Avg ${results.average}% · ${results.marked} test${results.marked === 1 ? '' : 's'}` : results.results.length ? 'Not marked yet' : 'No tests yet'}
-            onPress={() => navigation.navigate('StudentTests', { membershipId: m.id })}
-          />
-          <Tile icon="book-outline" title="Syllabus" soon onPress={soon('Syllabus', 'book-outline')} />
+          {isSubject ? null : (
+            <Tile
+              icon="wallet-outline"
+              title="Fees"
+              line={feeLine}
+              lineTone={ledger?.dueAmount ? 'error' : 'muted'}
+              onPress={() => navigation.navigate('BatchFees', { membershipId: m.id })}
+            />
+          )}
+          {isSection ? (
+            <Tile icon="megaphone-outline" title="Notices" line={newNotices ? `${newNotices} new` : `${notices.length} from the institute`} onPress={openNotices} />
+          ) : null}
+          {isSection ? null : (
+            <Tile
+              icon="checkmark-done-outline"
+              title="Attendance"
+              line={overall.held ? `${percentLabel(overall.percent)} · ${overall.held} class${overall.held === 1 ? '' : 'es'}` : 'No classes yet'}
+              lineTone={overall.percent != null && overall.percent < LOW_ATTENDANCE ? 'error' : 'muted'}
+              onPress={() => navigation.navigate('StudentAttendance', { membershipId: m.id })}
+            />
+          )}
+          {isSection ? null : (
+            <Tile
+              icon="document-text-outline"
+              title="Tests & Results"
+              line={
+                results.average != null
+                  ? `Avg ${results.average}% · ${results.marked} test${results.marked === 1 ? '' : 's'}`
+                  : results.results.length
+                    ? 'Not marked yet'
+                    : 'No tests yet'
+              }
+              onPress={() => navigation.navigate('StudentTests', { membershipId: m.id })}
+            />
+          )}
+          {isSection ? null : <Tile icon="book-outline" title="Syllabus" soon onPress={soon('Syllabus', 'book-outline')} />}
         </View>
+
+        {/* ── A section's subjects: each opens like a batch ─────────────── */}
+        {isSection ? (
+          <View style={{ marginTop: spacing.xxl }}>
+            <SectionHeader title="Subjects" subtitle={subjects.length ? 'Attendance, tests and notices for each' : undefined} />
+            {subjects.length ? (
+              <Card padded={false}>
+                {subjects.map((x, i) => (
+                  <Pressable
+                    key={x.id}
+                    onPress={() => navigation.push('BatchDetail', { membershipId: x.id })}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.subjectRow,
+                      { borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <AppText variant="subheading">{x.subject}</AppText>
+                      <AppText variant="caption" tone="muted" numberOfLines={1}>
+                        {x.teacher_name || 'Teacher to be announced'}
+                      </AppText>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                  </Pressable>
+                ))}
+              </Card>
+            ) : (
+              <Card muted>
+                <AppText variant="caption" tone="muted">
+                  The institute hasn’t added this section’s subjects yet.
+                </AppText>
+              </Card>
+            )}
+          </View>
+        ) : null}
 
         {/* ── Week ───────────────────────────────────────────────────── */}
         <View style={{ marginTop: spacing.xxl }}>
           <SectionHeader title="Classes every week" />
           <Card padded={false}>
             {DAY_KEYS.map((d, i) => {
-              const v = m.weekly_schedule?.[d]?.trim();
-              const closed = !v || v.toLowerCase() === 'closed';
+              const open = (t: string | undefined) => !!t && t.trim().toLowerCase() !== 'closed';
+              const v = isSection
+                ? subjects
+                    .filter((x) => open(x.weekly_schedule?.[d]))
+                    .map((x) => `${x.subject} ${x.weekly_schedule![d].trim()}`)
+                    .join('\n')
+                : m.weekly_schedule?.[d]?.trim();
+              const closed = !open(v);
               const isToday = d === today;
               return (
                 <Row
@@ -197,7 +270,7 @@ export function BatchDetailScreen() {
                     {DAY_NAMES[d]}
                     {isToday ? ' · Today' : ''}
                   </AppText>
-                  <AppText variant={closed ? 'caption' : 'bodyStrong'} tone={closed ? 'muted' : undefined}>
+                  <AppText variant={closed ? 'caption' : 'bodyStrong'} tone={closed ? 'muted' : undefined} style={{ textAlign: 'right', flexShrink: 1 }}>
                     {closed ? 'No class' : v}
                   </AppText>
                 </Row>
@@ -230,14 +303,37 @@ export function BatchDetailScreen() {
           ) : (
             <Card muted>
               <AppText variant="caption" tone="muted">
-                No notices from the teacher yet.
+                {isSection ? 'No notices from the institute yet.' : 'No notices from the teacher yet.'}
               </AppText>
             </Card>
           )}
         </View>
 
         {/* ── Teacher ────────────────────────────────────────────────── */}
-        {teacher?.name ? (
+        {/* ── The institute ──────────────────────────────────────────── */}
+        {m.institute ? (
+          <View style={{ marginTop: spacing.xxl }}>
+            <SectionHeader title="Institute" />
+            <Card>
+              <Row gap={spacing.md} align="flex-start">
+                <CenterMark text={m.institute.logo_text} color={m.institute.theme_color} size={44} />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="subheading">{m.institute.name}</AppText>
+                  {m.institute.tagline ? (
+                    <AppText variant="caption" tone="muted">
+                      {m.institute.tagline}
+                    </AppText>
+                  ) : null}
+                  <AppText variant="caption" tone="secondary" style={{ marginTop: 4 }}>
+                    {[m.institute.address, m.institute.phone, m.institute.email].filter(Boolean).join(' · ')}
+                  </AppText>
+                </View>
+              </Row>
+            </Card>
+          </View>
+        ) : null}
+
+        {teacher?.name && !isSection ? (
           <View style={{ marginTop: spacing.xxl }}>
             <SectionHeader title="Teacher" />
             <Card>
@@ -271,50 +367,66 @@ export function BatchDetailScreen() {
       {/* ── ⋮ menu ─────────────────────────────────────────────────────── */}
       <Sheet visible={menu} onClose={() => setMenu(false)} title={m.batch_name} subtitle={[m.subject, m.grade, m.board].filter(Boolean).join(' · ')}>
         <View style={{ paddingBottom: spacing.md }}>
-          <MenuRow
-            icon="person-add-outline"
-            title="Add students"
-            subtitle="Invite a friend: QR code, link and join code"
-            onPress={fromMenu(() => navigation.navigate('BatchInvite', { membershipId: m.id }))}
-          />
+          {section ? (
+            <MenuRow
+              icon="people-outline"
+              title={`Section ${section.batch_name}`}
+              subtitle="Fees, all subjects and the institute’s notices"
+              onPress={fromMenu(() => navigation.push('BatchDetail', { membershipId: section.id }))}
+            />
+          ) : null}
+          {isSubject ? null : (
+            <MenuRow
+              icon="person-add-outline"
+              title="Add students"
+              subtitle="Invite a friend: QR code, link and join code"
+              onPress={fromMenu(() => navigation.navigate('BatchInvite', { membershipId: m.id }))}
+            />
+          )}
           <MenuRow
             icon="information-circle-outline"
-            title="Batch info"
-            subtitle="Teacher, fee, course, room and timetable"
+            title={isSection ? 'Section info' : isSubject ? 'Subject info' : 'Batch info'}
+            subtitle={isSection ? 'Fee, course and seats' : 'Teacher, fee, course, room and timetable'}
             onPress={fromMenu(() => navigation.navigate('BatchInfo', { membershipId: m.id }))}
           />
-          <MenuRow
-            icon="checkmark-done-outline"
-            title="Attendance"
-            subtitle={overall.held ? `${percentLabel(overall.percent)} so far` : 'No classes marked yet'}
-            onPress={fromMenu(() => navigation.navigate('StudentAttendance', { membershipId: m.id }))}
-          />
-          <MenuRow
-            icon="document-text-outline"
-            title="Tests & Results"
-            subtitle={results.average != null ? `Average ${results.average}%` : 'No marks yet'}
-            onPress={fromMenu(() => navigation.navigate('StudentTests', { membershipId: m.id }))}
-          />
-          <MenuRow
-            icon="wallet-outline"
-            title="Fees"
-            subtitle={feeLine}
-            onPress={fromMenu(() => navigation.navigate('BatchFees', { membershipId: m.id }))}
-          />
+          {isSection ? null : (
+            <>
+              <MenuRow
+                icon="checkmark-done-outline"
+                title="Attendance"
+                subtitle={overall.held ? `${percentLabel(overall.percent)} so far` : 'No classes marked yet'}
+                onPress={fromMenu(() => navigation.navigate('StudentAttendance', { membershipId: m.id }))}
+              />
+              <MenuRow
+                icon="document-text-outline"
+                title="Tests & Results"
+                subtitle={results.average != null ? `Average ${results.average}%` : 'No marks yet'}
+                onPress={fromMenu(() => navigation.navigate('StudentTests', { membershipId: m.id }))}
+              />
+            </>
+          )}
+          {isSubject ? null : (
+            <MenuRow
+              icon="wallet-outline"
+              title="Fees"
+              subtitle={feeLine}
+              onPress={fromMenu(() => navigation.navigate('BatchFees', { membershipId: m.id }))}
+            />
+          )}
           <MenuRow
             icon="megaphone-outline"
             title="Notices"
-            subtitle={newNotices ? `${newNotices} new` : notices.length ? `${notices.length} from the teacher` : 'None yet'}
+            subtitle={newNotices ? `${newNotices} new` : notices.length ? `${notices.length} so far` : 'None yet'}
             onPress={fromMenu(openNotices)}
           />
-          {m.join_code ? <MenuRow icon="share-social-outline" title="Share join link" onPress={fromMenu(shareLink)} /> : null}
-          {m.status === 'approved' ? (
+          {m.join_code && !isSubject ? <MenuRow icon="share-social-outline" title="Share join link" onPress={fromMenu(shareLink)} /> : null}
+          {m.status === 'approved' && !isSubject ? (
             <>
               <Divider style={{ marginVertical: spacing.sm }} />
               <MenuRow
                 icon="exit-outline"
-                title="Leave batch"
-                subtitle="The teacher keeps the history · needs the internet"
+                title={`Leave ${noun}`}
+                subtitle={isSection ? 'With all its subjects · needs the internet' : 'The teacher keeps the history · needs the internet'}
                 danger
                 onPress={fromMenu(() => setConfirmLeave(true))}
               />
@@ -327,8 +439,11 @@ export function BatchDetailScreen() {
         visible={confirmLeave}
         title={`Take ${m.student_name.split(' ')[0]} out of ${m.batch_name}?`}
         message={
-          'The teacher stops seeing your number and the batch leaves this app. ' +
-          'Attendance and fees so far stay with the teacher. You can join again later with the same code. Needs the internet.'
+          isSection
+            ? 'The institute stops seeing your number and the section — with all its subjects — leaves this app. ' +
+              'Attendance, marks and fees so far stay with the institute. You can join again later with the same code. Needs the internet.'
+            : 'The teacher stops seeing your number and the batch leaves this app. ' +
+              'Attendance and fees so far stay with the teacher. You can join again later with the same code. Needs the internet.'
         }
         confirmLabel="Leave"
         confirmIcon="exit-outline"
@@ -452,4 +567,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   menuIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  subjectRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
 });

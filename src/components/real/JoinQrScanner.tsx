@@ -6,7 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, spacing } from '../../theme/tokens';
-import { isJoinCode, joinCodeFromUrl, normalizeJoinCode } from '../../lib/api/batches';
+import { isInstituteCode, isJoinCode, joinCodeFromUrl, normalizeJoinCode } from '../../lib/api/batches';
 import { AppText } from '../ui/base';
 import { Button } from '../ui/Button';
 
@@ -17,7 +17,7 @@ function codeFromScan(data: string): string | null {
   const fromLink = joinCodeFromUrl(data);
   if (fromLink) return fromLink;
   const bare = normalizeJoinCode(data);
-  return isJoinCode(bare) ? bare : null;
+  return isJoinCode(bare) || isInstituteCode(bare) ? bare : null;
 }
 
 /**
